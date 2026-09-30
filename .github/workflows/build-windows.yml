@@ -50,7 +50,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Packaged CLI failed.' }
           foreach ($path in @(
             'dist/TeXToAccessibleHTML/TeXToAccessibleHTML.exe',
-            'dist/TeXToAccessibleHTML/locales/ru/LC_MESSAGES/tex_to_accessible_html.mo',
+            'dist/TeXToAccessibleHTML/_internal/locales/ru/LC_MESSAGES/tex_to_accessible_html.mo',
             'dist/TeXToAccessibleHTML/docs/README.html',
             'dist/TeXToAccessibleHTML/docs/README_RU.html',
             'dist/TeXToAccessibleHTML/docs/LICENSE'
