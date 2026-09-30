@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TeX to Accessible HTML Converter — Documentation</title>
+  <style>
+    body { max-width: 70rem; margin: auto; padding: 1.5rem; font: 1.1rem/1.6 system-ui, sans-serif; color: #171717; background: #fff; }
+    nav ul { display: flex; flex-wrap: wrap; gap: 1rem; padding-left: 1.2rem; }
+    code, pre { font-family: ui-monospace, monospace; }
+    pre { overflow: auto; padding: 1rem; background: #f3f3f3; }
+    .warning { border-left: .35rem solid #9b5b00; padding: .5rem 1rem; background: #fff5df; }
+    a:focus { outline: .2rem solid #005fcc; outline-offset: .15rem; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>TeX to Accessible HTML Converter</h1>
+  <p>A Windows application that converts LaTeX documents to HTML5 with Presentation MathML for visual display, screen readers, Braille output, and MathCAT.</p>
+</header>
+<nav aria-label="Documentation sections">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#requirements">Requirements</a></li>
+    <li><a href="#using">Using the application</a></li>
+    <li><a href="#cli">Command line</a></li>
+    <li><a href="#internals">How it works</a></li>
+    <li><a href="#quality">Python code quality</a></li>
+    <li><a href="#language">Language</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#feedback">Feedback and contributing</a></li>
+  </ul>
+</nav>
+<main>
+  <aside class="warning" aria-label="Important warning">
+    <strong>Alpha software.</strong> Process untrusted TeX only in an isolated environment.
+  </aside>
+  <aside class="warning" aria-label="Disk-space warning"><strong>Disk space.</strong> Program logs and temporary files can occupy a large amount of disk space. Keep them only when investigating conversion errors.</aside>
+  <section id="features"><h2>Features</h2><ul>
+    <li>Accessible English and Russian wxPython interface.</li>
+    <li>Batch conversion of individual files or every <code>.tex</code> file in a folder.</li>
+    <li>Supports TeX Live and MiKTeX distributions; the supported conversion engines are LaTeX, LuaLaTeX, and XeLaTeX.</li>
+    <li>MathML repair and structural validation before replacing existing output.</li>
+    <li>HTML-only, logs, temporary-files, and logs-plus-temporary-files retention modes.</li>
+    <li>The original TeX source is never modified.</li>
+  </ul></section>
+  <section id="requirements"><h2>Requirements</h2><p>The installed application requires TeX Live or MiKTeX with <code>make4ht</code>, TeX4ht, and the packages used by the source document.</p></section>
+  <section id="using"><h2>Using the application</h2><ol>
+    <li>Use <strong>Add .tex</strong> for individual files or <strong>Add folder</strong> for all TeX files directly in a folder.</li><li>Select the destination, TeX distribution, engine, time limit, and files to keep.</li><li>Select <strong>Convert</strong>.</li>
+  </ol><p>Folder selection is non-recursive. By default only the validated HTML is retained. Logs are written to <code>name.html.logs/run-*</code>; complete build trees to <code>name.html.temporary/run-*</code>. Use <strong>Open documentation</strong> or press <kbd>F1</kbd> to reopen this page.</p></section>
+  <section id="cli"><h2>Command line</h2><p>The CLI accepts files and folders and does not require wxPython:</p><pre><code>python tex_to_accessible_html_cli.py INPUT [INPUT ...] [--recursive]
+  [-o OUTPUT_DIR] [--engine latex|lualatex|xelatex]
+  [--mode default|draft] [--tex-distribution auto|texlive|miktex]
+  [--timeout SECONDS] [--keep html|logs|temporary|all]</code></pre><p>Directories are non-recursive unless <code>--recursive</code> is used. Exit status 0 means complete success, 1 means at least one conversion failed, and 2 means invalid input.</p></section>
+  <section id="internals"><h2>How it works</h2><p>The converter stages the source tree in an isolated directory and never changes the original. It applies limited TeX4ht compatibility adaptations to that copy, runs <code>make4ht</code> with a bounded subprocess, normalizes the HTML, repairs known MathML fidelity defects, and validates MathML structure. Only a validated result replaces the destination. The GUI and CLI call the same pipeline. Separate modules handle process control, TeX compatibility, MathML repair, validation, localization, and presentation.</p></section>
+  <section id="quality"><h2>Python code quality</h2><p>Public modules, classes, functions, and methods follow PEP 257 and use Python type annotations. Development checks use Ruff for formatting and static analysis, mypy for type checking, and pytest for regression tests.</p></section>
+  <section id="language"><h2>Language</h2><p>Use the Language selector to switch between English and Russian. Files and conversion settings are retained, and the selection is saved for future launches.</p></section>
+  <section id="security"><h2>Security</h2><p>TeX can execute powerful commands. Do not process untrusted documents outside an isolated environment. The converter applies compatibility changes only to a temporary staged copy.</p></section>
+  <section id="feedback"><h2>Feedback and contributing</h2><p>Report bugs and request features in <a href="https://github.com/Kostenkov-2021/tex_to_accessible_html_converter/issues">GitHub Issues</a>. Contributions are welcome. Include a minimal TeX example, distribution, engine, and diagnostic logs when appropriate; never publish confidential documents or logs.</p></section>
+</main>
+<footer><p>Distributed under the MIT License. See the bundled <code>LICENSE</code> file.</p></footer>
+</body>
+</html>
