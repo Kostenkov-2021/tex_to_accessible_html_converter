@@ -27,7 +27,7 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) { throw "gettext catalog compilation failed." }
 
 if (-not $SkipTests) {
-    $testFiles = Get-ChildItem -LiteralPath $projectRoot -Filter "test_*.py" -File |
+    $testFiles = Get-ChildItem -LiteralPath (Join-Path $projectRoot "tests") -Filter "test_*.py" -File |
         Sort-Object Name |
         Select-Object -ExpandProperty FullName
     if (-not $testFiles) { throw "No test_*.py files were found in '$projectRoot'." }

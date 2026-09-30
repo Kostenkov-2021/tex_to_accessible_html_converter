@@ -28,4 +28,5 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 norecursedirs = [".venv", ".git", ".uv-cache", "build", "dist", "conversion_runs"]
