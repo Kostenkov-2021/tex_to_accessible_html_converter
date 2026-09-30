@@ -1,6 +1,5 @@
 import gettext
 import json
-from pathlib import Path
 
 import localization
 from localization import DOMAIN, Translator
@@ -31,8 +30,9 @@ def test_russian_catalog_translates_interface_and_backend_messages():
 
 
 def test_russian_gettext_catalog_can_be_loaded():
-    locale_dir = Path(__file__).with_name("locales")
-    catalog = gettext.translation(DOMAIN, localedir=locale_dir, languages=["ru"])
+    catalog = gettext.translation(
+        DOMAIN, localedir=localization.LOCALE_DIR, languages=["ru"]
+    )
 
     assert catalog.gettext("Convert") == "Конвертировать"
 
