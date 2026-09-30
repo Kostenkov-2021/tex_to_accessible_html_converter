@@ -1,0 +1,40 @@
+name: TeX integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 4 * * 2'
+
+permissions:
+  contents: read
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [latex, lualatex, xelatex]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y texlive-latex-extra texlive-extra-utils texlive-plain-generic texlive-luatex texlive-xetex texlive-lang-cyrillic texlive-fonts-recommended
+          make4ht --version
+      - name: Convert and validate fixtures
+        run: python scripts/check_tex_integration.py --engine '${{ matrix.engine }}'
+      - name: Save HTML and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tex-integration-${{ matrix.engine }}
+          path: build/tex-integration/${{ matrix.engine }}
+          if-no-files-found: warn
+          retention-days: 7
