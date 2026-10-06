@@ -31,6 +31,7 @@ def test_main_converts_folder_and_passes_retention(monkeypatch, tmp_path, capsys
     assert calls[0]["output_file"] == output_dir / "source.html"
     assert calls[0]["keep_logs"] is True
     assert calls[0]["keep_temporary_files"] is True
+    assert "mode" not in calls[0]
     assert str(output_dir / "source.html") in capsys.readouterr().out
 
 

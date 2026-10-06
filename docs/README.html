@@ -51,7 +51,7 @@
   </ol><p>Folder selection is non-recursive. By default only the validated HTML is retained. Logs are written to <code>name.html.logs/run-*</code>; complete build trees to <code>name.html.temporary/run-*</code>. Use <strong>Open documentation</strong> or press <kbd>F1</kbd> to reopen this page.</p></section>
   <section id="cli"><h2>Command line</h2><p>The CLI accepts files and folders and does not require wxPython:</p><pre><code>python tex_to_accessible_html_cli.py INPUT [INPUT ...] [--recursive]
   [-o OUTPUT_DIR] [--engine latex|lualatex|xelatex]
-  [--mode default|draft] [--tex-distribution auto|texlive|miktex]
+  [--tex-distribution auto|texlive|miktex]
   [--timeout SECONDS] [--keep html|logs|temporary|all]</code></pre><p>Directories are non-recursive unless <code>--recursive</code> is used. Exit status 0 means complete success, 1 means at least one conversion failed, and 2 means invalid input.</p></section>
   <section id="internals"><h2>How it works</h2><p>The converter stages the source tree in an isolated directory and never changes the original. It applies limited TeX4ht compatibility adaptations to that copy, runs <code>make4ht</code> with a bounded subprocess, normalizes the HTML, repairs known MathML fidelity defects, and validates MathML structure. Only a validated result replaces the destination. The GUI and CLI call the same pipeline. Separate modules handle process control, TeX compatibility, MathML repair, validation, localization, and presentation.</p></section>
   <section id="quality"><h2>Python code quality</h2><p>Public modules, classes, functions, and methods follow PEP 257 and use Python type annotations. Development checks use Ruff for formatting and static analysis, mypy for type checking, and pytest for regression tests.</p></section>
@@ -60,5 +60,8 @@
   <section id="feedback"><h2>Feedback and contributing</h2><p>Report bugs and request features in <a href="https://github.com/Kostenkov-2021/tex_to_accessible_html_converter/issues">GitHub Issues</a>. Contributions are welcome. Include a minimal TeX example, distribution, engine, and diagnostic logs when appropriate; never publish confidential documents or logs.</p></section>
 </main>
 <footer><p>Distributed under the MIT License. See the bundled <code>LICENSE</code> file.</p></footer>
+<p>Before conversion, a LaTeX engine validates the first staged copy. Known typos are repaired in a second copy; changed documents are validated again. HTML and MathML are checked before and after repairs. The destination is replaced after validation and complete preparation. These checks do not prove semantic equivalence for arbitrary TeX documents.</p>
+<p>Formula correspondence checks compare supported symbols, fractions, roots, scripts and matrices against corrected TeX. Detected differences block publication. Unsupported constructs receive a separate status. The formula-verification.json report is retained with logs and in the tex-formula-verification JSON block inside HTML in every retention mode. This verifies notation rather than mathematical equivalence.</p>
+<p>Recognized grouped legacy text font switches are modernized in the staged copy, preserving their font reset. Math, comments and literal examples are preserved. Changes are recorded in legacy-migrations.json and the changed source is validated again. User macros and localized mathematical operator names are not automatically renamed.</p>
 </body>
 </html>

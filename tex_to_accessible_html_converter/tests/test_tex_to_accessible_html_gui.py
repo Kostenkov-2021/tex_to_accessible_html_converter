@@ -104,6 +104,32 @@ def gui_module(monkeypatch):
     fake_wx.Frame = type("Frame", (), {})
     fake_wx.App = type("App", (), {})
     fake_wx.Window = object
+    fake_wx.ACC_OK = 0
+    fake_wx.ACC_NOT_IMPLEMENTED = 2
+
+    class FakeAccessible:
+        def __init__(self, window):
+            self.window = window
+
+        def GetWindow(self):
+            return self.window
+
+    class FakeListBox(FakeControl):
+        def __init__(self):
+            super().__init__()
+            self.items = []
+
+        def GetCount(self):
+            return len(self.items)
+
+        def GetString(self, index):
+            return self.items[index]
+
+        def SetAccessible(self, accessible):
+            self.accessible = accessible
+
+    fake_wx.Accessible = FakeAccessible
+    fake_wx.ListBox = FakeListBox
     fake_wx.Choice = object
     fake_wx.CommandEvent = object
     fake_wx.ID_OK = 1
@@ -123,20 +149,20 @@ def test_selected_value_returns_internal_value(gui_module):
     choice = FakeChoice(1)
 
     result = gui_module.selected_value(
-        choice, [("Обычный", "default"), ("Быстрый", "draft")]
+        choice, [("LaTeX", "latex"), ("LuaLaTeX", "lualatex")]
     )
 
-    assert result == "draft"
+    assert result == "lualatex"
 
 
 def test_selected_value_falls_back_to_first_value(gui_module):
     choice = FakeChoice(gui_module.wx.NOT_FOUND)
 
     result = gui_module.selected_value(
-        choice, [("Обычный", "default"), ("Быстрый", "draft")]
+        choice, [("LaTeX", "latex"), ("LuaLaTeX", "lualatex")]
     )
 
-    assert result == "default"
+    assert result == "latex"
 
 
 def test_documentation_path_selects_bundled_language_file(gui_module, tmp_path):
@@ -187,6 +213,27 @@ def test_set_accessible_text_uses_name_as_default_tooltip(gui_module):
     assert control.name == "Список файлов"
     assert control.tooltip == "Список файлов"
     assert control.help_text == "Список файлов"
+
+
+def test_file_list_accessible_names_follow_current_rows(gui_module, tmp_path):
+    control = gui_module.wx.ListBox()
+    paths = [tmp_path / "Первая папка" / "пример.tex", tmp_path / "other" / "пример.tex"]
+    control.items = [str(path) for path in paths]
+    gui_module.set_accessible_text(control, "TeX files", "Files to convert")
+    accessible = control.accessible
+
+    assert accessible.GetName(0) == (gui_module.wx.ACC_OK, "TeX files")
+    for index, path in enumerate(paths, start=1):
+        assert accessible.GetName(index) == (
+            gui_module.wx.ACC_OK, f"{path.name}, {path}"
+        )
+    assert accessible.GetDescription(1) == (gui_module.wx.ACC_NOT_IMPLEMENTED, "")
+    control.items.pop(0)
+    assert accessible.GetName(1) == (
+        gui_module.wx.ACC_OK, f"{paths[1].name}, {paths[1]}"
+    )
+    control.items.clear()
+    assert accessible.GetName(1) == (gui_module.wx.ACC_NOT_IMPLEMENTED, "")
 
 
 def test_update_folder_controls_visibility_follows_custom_folder_radio(gui_module):
@@ -246,7 +293,6 @@ def test_convert_files_pushes_success_and_done_messages(
         tex_file,
         output_file,
         engine,
-        mode,
         tex_distribution,
         timeout,
         keep_logs,
@@ -254,7 +300,6 @@ def test_convert_files_pushes_success_and_done_messages(
     ):
         assert output_file == output_dir / "source.html"
         assert engine == "lualatex"
-        assert mode == "draft"
         assert tex_distribution == "miktex"
         assert timeout == 300
         assert keep_logs is False
@@ -268,7 +313,7 @@ def test_convert_files_pushes_success_and_done_messages(
     )
 
     gui_module.ConverterFrame.convert_files(
-        frame, [tex_file], output_dir, "lualatex", "draft", "miktex"
+        frame, [tex_file], output_dir, "lualatex", "miktex"
     )
 
     assert frame.results.get_nowait() == ("start", "1")
@@ -295,7 +340,7 @@ def test_convert_files_pushes_error_and_done_messages(
     )
 
     gui_module.ConverterFrame.convert_files(
-        frame, [tex_file], None, "lualatex", "draft"
+        frame, [tex_file], None, "lualatex"
     )
 
     assert frame.results.get_nowait() == ("start", "1")
@@ -318,7 +363,6 @@ def test_set_busy_disables_and_enables_interactive_controls(gui_module):
     frame.folder_text = FakeControl()
     frame.tex_distribution_choice = FakeControl()
     frame.engine_choice = FakeControl()
-    frame.mode_choice = FakeControl()
     frame.timeout_input = FakeControl()
     statuses = []
     frame.SetStatusText = statuses.append
@@ -332,7 +376,6 @@ def test_set_busy_disables_and_enables_interactive_controls(gui_module):
     assert frame.clear_button.enabled_values == [False, True]
     assert frame.tex_distribution_choice.enabled_values == [False, True]
     assert frame.engine_choice.enabled_values == [False, True]
-    assert frame.mode_choice.enabled_values == [False, True]
     assert frame.timeout_input.enabled_values == [False, True]
     assert frame.folder_button.enabled_values == [False, True]
     assert frame.folder_text.enabled_values == [False, True]
@@ -347,7 +390,7 @@ def test_worker_reports_unexpected_error_and_finishes(gui_module, monkeypatch):
         raise ValueError("invalid input")
 
     monkeypatch.setattr(gui_module, "convert_tex_to_accessible_html", fail)
-    frame.convert_files([Path("source.tex")], None, "lualatex", "default")
+    frame.convert_files([Path("source.tex")], None, "lualatex")
     messages = []
     while not frame.results.empty():
         messages.append(frame.results.get_nowait())

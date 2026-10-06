@@ -13,6 +13,21 @@ MI = f"{{{MATHML}}}mi"
 MO = f"{{{MATHML}}}mo"
 MN = f"{{{MATHML}}}mn"
 MROW = f"{{{MATHML}}}mrow"
+FUNCTION_NAMES = {
+    "sin", "cos", "tan", "cot", "sec", "csc", "sinh", "cosh",
+    "tanh", "coth", "ln", "log", "exp", "arcsin", "arccos", "arctan", "arg", "ker",
+}
+PRIMES = {"′", "″", "‴", "⁗"}
+
+
+def _is_function_name(node):
+    text = (node.text or "").strip()
+    return (
+        node.tag == MI and not len(node)
+        and (text in FUNCTION_NAMES or (
+            text.isalpha() and {"loglike", "qopname"} & set(node.get("class", "").split())
+        ))
+    )
 BROKEN_RELATION = re.compile(
     r"<mstyle(?P<attrs>[^>]*\bclass=(?P<quote>['\"])MathClass-rel(?P=quote)[^>]*)>"
     r"\s*(?P<symbol>&lt;|&gt;)/mo&gt;(?P<body>.*?)</mstyle>",
@@ -174,6 +189,67 @@ def repair_mathml_fidelity(html: str) -> str:
             return fragment
         changed = False
         for parent in root.iter():
+            # TeX4ht occasionally nests the double-prime token inside another
+            # token. Preserve the symbol without treating it as a function.
+            if (
+                parent.tag in {MI, MO}
+                and set(parent.attrib) <= {"class"}
+                and not (parent.text or "").strip()
+                and len(parent) == 1
+                and parent[0].tag == MI and not len(parent[0])
+                and not parent[0].attrib
+                and (parent[0].text or "").strip() in PRIMES
+                and not (parent[0].tail or "").strip()
+            ):
+                prime_text = (parent[0].text or "").strip()
+                parent.remove(parent[0])
+                parent.tag = MO
+                parent.text = prime_text
+                classes = set(parent.get("class", "").split()) - {"qopname"}
+                if classes:
+                    parent.set("class", " ".join(sorted(classes)))
+                else:
+                    parent.attrib.pop("class", None)
+                changed = True
+            if parent.tag in SCRIPTS and len(parent) >= 2:
+                exponent = parent[-1]
+                if (
+                    parent.tag in {f"{{{MATHML}}}msup", f"{{{MATHML}}}msubsup"}
+                    and exponent.tag == MROW and not exponent.attrib
+                    and not (exponent.text or "").strip()
+                    and len(exponent) == 2
+                    and exponent[0].tag in {MI, MO}
+                    and len(exponent[0]) == 1
+                    and set(exponent[0].attrib) <= {"class"}
+                    and exponent[0][0].tag == MI and not exponent[0][0].attrib
+                    and not len(exponent[0][0])
+                    and (exponent[0][0].text or "").strip() in PRIMES
+                    and not (exponent[0].text or "").strip()
+                    and exponent[1].tag == MO and not len(exponent[1])
+                    and not exponent[1].attrib
+                    and (exponent[1].text or "").strip() == "\u2061"
+                    and all(not (node.tail or "").strip() for node in exponent.iter())
+                ):
+                    # The qopname-generated application after a derivative
+                    # prime is not an application of a function named prime.
+                    exponent.remove(exponent[1])
+                    changed = True
+            # TeX Live 2025 can wrap a complete function application in an
+            # empty token: <mo><mi>sin</mi><mo>&#x2061;</mo></mo>.
+            # A token cannot contain these mathematical children. A row
+            # preserves their order and the invisible application operator.
+            if (
+                parent.tag in {MI, MO}
+                and set(parent.attrib) <= {"class"}
+                and not (parent.text or "").strip()
+                and len(parent) == 2
+                and _is_function_name(parent[0])
+                and parent[1].tag == MO and not len(parent[1])
+                and (parent[1].text or "").strip() == "\u2061"
+                and all(not (child.tail or "").strip() for child in parent)
+            ):
+                parent.tag = MROW
+                changed = True
             if len(parent):
                 changed = _normalize_double_bars(parent) or changed
                 changed = _group_scripted_fences(parent) or changed
@@ -318,6 +394,79 @@ def repair_mathml_fidelity(html: str) -> str:
                     for previous in preceding:
                         parent.remove(previous)
                     changed = True
+        # The malformed qopname wrapper can also duplicate function application
+        # after its closing tag. Remove only an adjacent redundant U+2061.
+        for parent in root.iter():
+            # TeX4ht can split a single integer into adjacent digit tokens.
+            # Merge only touching, unstyled tokens; whitespace, mspace, IDs,
+            # operators and script boundaries keep separate numbers separate.
+            if parent.tag in ROWS:
+                rebuilt = []
+                digit_parts = []
+                digit_target = None
+                for child in parent:
+                    if (
+                        rebuilt and rebuilt[-1].tag == MN and child.tag == MN
+                        and not rebuilt[-1].attrib and not child.attrib
+                        and not len(rebuilt[-1]) and not len(child)
+                        and not rebuilt[-1].tail
+                        and re.fullmatch(r"[0-9]+", rebuilt[-1].text or "")
+                        and re.fullmatch(r"[0-9]+", child.text or "")
+                    ):
+                        if digit_target is None:
+                            digit_target = rebuilt[-1]
+                            digit_parts = [digit_target.text]
+                        digit_parts.append(child.text)
+                        rebuilt[-1].tail = child.tail
+                        changed = True
+                    else:
+                        if digit_target is not None:
+                            digit_target.text = "".join(digit_parts)
+                            digit_target = None
+                        rebuilt.append(child)
+                if digit_target is not None:
+                    digit_target.text = "".join(digit_parts)
+                parent[:] = rebuilt
+            children = list(parent)
+            for first, second in zip(children, children[1:]):
+                if (
+                    first.tag == MROW and len(first) == 2
+                    and first[0].tag == MI and not len(first[0])
+                    and first[1].tag == MO and not len(first[1])
+                    and (first[1].text or "").strip() == "\u2061"
+                    and second.tag == MO and not len(second)
+                    and (second.text or "").strip() == "\u2061"
+                    and not (first.tail or "").strip()
+                    and not (first[0].tail or "").strip()
+                    and not (first[1].tail or "").strip()
+                ):
+                    first.tail = (first.tail or "") + (second.tail or "")
+                    parent.remove(second)
+                    changed = True
+            if parent.tag in ROWS:
+                rebuilt = []
+                for child in parent:
+                    if (
+                        child.tag == MROW and len(child) == 2
+                        and set(child.attrib) <= {"class"}
+                        and not (child.text or "").strip()
+                        and _is_function_name(child[0])
+                        and child[1].tag == MO and not len(child[1])
+                        and (child[1].text or "").strip() == "\u2061"
+                        and all(not (part.tail or "").strip() for part in child)
+                    ):
+                        # Keep application in the same row as its argument.
+                        # An isolated function-name row can be read as a product.
+                        classes = set(child[0].get("class", "").split())
+                        classes.update(child.get("class", "").split())
+                        if classes:
+                            child[0].set("class", " ".join(sorted(classes)))
+                        child[1].tail = (child[1].tail or "") + (child.tail or "")
+                        rebuilt.extend(child)
+                        changed = True
+                    else:
+                        rebuilt.append(child)
+                parent[:] = rebuilt
         return ET.tostring(root, encoding="unicode") if changed else fragment
 
     return MATH.sub(repair, html)

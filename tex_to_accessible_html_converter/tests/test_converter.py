@@ -1,5 +1,6 @@
 from pathlib import Path
 from subprocess import CompletedProcess
+import re
 
 import pytest
 
@@ -22,6 +23,16 @@ from converter import (
     rewrite_css_link,
     safe_temp_prefix,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolate_external_latex_validation(monkeypatch):
+    """Pipeline unit tests replace native compilation, tested independently."""
+    monkeypatch.setattr(converter, "validate_latex_document", lambda *args, **kwargs: [])
+
+
+def without_formula_report(html):
+    return re.sub(r'<script type="application/json" id="tex-formula-verification">.*?</script>\n?', '', html)
 
 
 def test_heading_levels_are_compressed_without_changing_hierarchy():
@@ -72,6 +83,18 @@ def test_document_content_and_toc_get_landmarks():
     assert result.index("</nav>") < result.index("</main>")
     assert "<head><main>" not in result
     assert add_document_landmarks(result) == result
+
+
+def test_toc_navigation_does_not_capture_previous_title_container():
+    from html_validation import validate_html_structure
+    html = ('<html><body><div class="maketitle"><h1>Book title</h1>'
+            '<div class="author">Author</div></div>'
+            '<h1>Contents</h1><div class="tableofcontents">Links</div>'
+            '<h1>Chapter</h1></body></html>')
+    result = add_document_landmarks(html)
+    assert '<nav aria-label="Оглавление"><h1>Contents</h1>' in result
+    assert result.index('Book title') < result.index('<nav ')
+    assert validate_html_structure(result) == []
 
 
 def test_document_without_toc_still_gets_main_landmark():
@@ -314,7 +337,7 @@ def test_run_make4ht_uses_selected_distribution_for_child_processes(
 
     monkeypatch.setattr(converter, "run_logged_process", fake_run)
     converter.run_make4ht(
-        tmp_path / "source.tex", tmp_path, tmp_path, "lualatex", "default", "texlive"
+        tmp_path / "source.tex", tmp_path, tmp_path, "lualatex", "texlive"
     )
 
     assert (
@@ -340,12 +363,11 @@ def test_run_make4ht_reports_missing_texlive(monkeypatch, tmp_path):
             tmp_path,
             tmp_path,
             "lualatex",
-            "default",
             "texlive",
         )
 
 
-def test_draft_mode_uses_complete_passes_for_accessible_output(monkeypatch, tmp_path):
+def test_conversion_uses_complete_passes_for_accessible_output(monkeypatch, tmp_path):
     source = tmp_path / "source.tex"
     source.write_text(r"\documentclass{article}", encoding="utf-8")
     executable = tmp_path / "texlive" / "bin" / "make4ht.exe"
@@ -361,7 +383,7 @@ def test_draft_mode_uses_complete_passes_for_accessible_output(monkeypatch, tmp_
 
     monkeypatch.setattr(converter, "run_logged_process", fake_run)
 
-    converter.run_make4ht(source, tmp_path, tmp_path, "latex", "draft", "texlive")
+    converter.run_make4ht(source, tmp_path, tmp_path, "latex", "texlive")
 
     command = captured["command"]
     assert command[command.index("-m") + 1] == "default"
@@ -417,11 +439,11 @@ def test_convert_tex_to_accessible_html_inlines_css_and_removes_css(
     output_file = tmp_path / "result.html"
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         (output_dir / "source.html").write_text(
-            "<html><head><link href='source.css' rel='stylesheet' /></head>"
-            "<body><math><mi>x</mi></math></body></html>",
+            "<html><head><title></title><link href='source.css' rel='stylesheet' /></head>"
+            "<body><h2>Курс математики</h2><math><mi>x</mi></math></body></html>",
             encoding="utf-8",
         )
         (output_dir / "source.css").write_text(
@@ -432,12 +454,14 @@ def test_convert_tex_to_accessible_html_inlines_css_and_removes_css(
     monkeypatch.setattr(converter, "run_make4ht", fake_run_make4ht)
 
     result = convert_tex_to_accessible_html(
-        tex_file, output_file=output_file, engine="lualatex", mode="draft"
+        tex_file, output_file=output_file, engine="lualatex"
     )
 
     assert result == output_file.resolve()
     html = output_file.read_text(encoding="utf-8")
     assert "<style>\nbody { color: black; }\n</style>" in html
+    assert "<title>Курс математики</title>" in html
+    assert "<h1>Курс математики</h1>" in html
     assert "<math xmlns='http://www.w3.org/1998/Math/MathML'>" in html
     assert not (tmp_path / "source.css").exists()
 
@@ -451,7 +475,7 @@ def test_convert_tex_to_accessible_html_runs_make4ht_inside_build_dir(
     seen_output_dirs = []
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         seen_output_dirs.append(output_dir)
         (build_dir / "source.html").write_text(
@@ -467,7 +491,7 @@ def test_convert_tex_to_accessible_html_runs_make4ht_inside_build_dir(
 
     assert result == (output_dir / "source.html").resolve()
     assert seen_output_dirs[0] != output_dir.resolve()
-    assert result.read_text(encoding="utf-8") == (
+    assert without_formula_report(result.read_text(encoding="utf-8")) == (
         "<html><head></head><body>\n<main>\nok\n</main>\n</body></html>"
     )
 
@@ -490,7 +514,7 @@ def test_convert_tex_to_accessible_html_stages_source_tree_before_make4ht(
     seen_tex_files = []
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         seen_tex_files.append(tex_file)
         assert tex_file.parent != source_dir.resolve()
@@ -518,7 +542,7 @@ def test_convert_tex_to_accessible_html_stages_source_tree_before_make4ht(
     )
 
     assert seen_tex_files == [build_root.resolve() / "source" / "source.tex"]
-    assert result.read_text(encoding="utf-8") == (
+    assert without_formula_report(result.read_text(encoding="utf-8")) == (
         "<html><head></head><body>\n<main>\nfresh\n</main>\n</body></html>"
     )
     assert "\\cfrac{1}{2}" in tex_file.read_text(encoding="utf-8")
@@ -568,7 +592,7 @@ def test_run_make4ht_adds_miktex_and_xetex_compatibility_to_staged_copy(
 
     monkeypatch.setattr(converter, "run_logged_process", fake_process)
 
-    converter.run_make4ht(source, tmp_path, tmp_path, "xelatex", "default", "miktex")
+    converter.run_make4ht(source, tmp_path, tmp_path, "xelatex", "miktex")
 
 
 def test_run_make4ht_applies_confirmed_staged_compatibility_for_classic_texlive_latex(
@@ -595,7 +619,34 @@ def test_run_make4ht_applies_confirmed_staged_compatibility_for_classic_texlive_
 
     monkeypatch.setattr(converter, "run_logged_process", fake_process)
 
-    converter.run_make4ht(source, tmp_path, tmp_path, "latex", "default", "texlive")
+    converter.run_make4ht(source, tmp_path, tmp_path, "latex", "texlive")
+
+
+def test_source_repairs_only_modify_staged_copy_and_are_logged(monkeypatch, tmp_path):
+    source_dir = tmp_path / "original"
+    source_dir.mkdir()
+    original = source_dir / "source.tex"
+    original_bytes = r'$a \), \( b$ {\itПример}'.encode("utf-8")
+    original.write_bytes(original_bytes)
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    staged = converter.stage_source_tree(original, build_dir / "source", build_dir)
+    monkeypatch.setattr(converter, "find_make4ht", lambda _: "texlive/bin/make4ht")
+
+    def fake_process(command, **kwargs):
+        assert staged.read_text(encoding="utf-8") == r'$a $, $ b$ {\it Пример}'
+        assert original.read_bytes() == original_bytes
+        return CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(converter, "run_logged_process", fake_process)
+    converter.run_make4ht(staged, build_dir, build_dir, "latex", "texlive")
+    assert (build_dir / "source.original.tex").read_bytes() == original_bytes
+    assert (build_dir / "source.corrected.tex").read_text(encoding="utf-8") == r'$a $, $ b$ {\it Пример}'
+    saved = converter.save_conversion_logs(build_dir, tmp_path / "output.html")
+    report = (saved / "source-repairs.txt").read_text(encoding="utf-8")
+    assert "mixed inline math delimiters" in report
+    assert "italic command" in report
+    assert original.read_bytes() == original_bytes
 
 
 def test_convert_tex_to_accessible_html_prefers_fresh_build_dir_output(
@@ -611,7 +662,7 @@ def test_convert_tex_to_accessible_html_prefers_fresh_build_dir_output(
     )
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         (build_dir / "source.html").write_text(
             "<html><head><link href='source.css' rel='stylesheet' /></head><body>fresh</body></html>",
@@ -641,7 +692,7 @@ def test_convert_tex_to_accessible_html_rewrites_css_link_when_css_is_missing(
     tex_file.write_text(r"\documentclass{article}", encoding="utf-8")
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         (output_dir / "source.html").write_text(
             '<html><head><link href="source.css" rel="stylesheet" /></head></html>',
@@ -670,7 +721,7 @@ def test_convert_tex_to_accessible_html_raises_when_make4ht_fails(
     tex_file.write_text(r"\documentclass{article}", encoding="utf-8")
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         return CompletedProcess(args=[], returncode=1, stdout="out", stderr="err")
 
@@ -688,7 +739,7 @@ def test_convert_tex_to_accessible_html_cleans_temporary_build_dir(
     seen_build_dirs = []
 
     def fake_run_make4ht(
-        tex_file, output_dir, build_dir, engine, mode, tex_distribution="auto", **kwargs
+        tex_file, output_dir, build_dir, engine, tex_distribution="auto", **kwargs
     ):
         seen_build_dirs.append(build_dir)
         (build_dir / "source.html").write_text(
@@ -752,6 +803,96 @@ def test_broken_mathml_does_not_replace_previous_html(monkeypatch, tmp_path):
 def test_invalid_timeout_is_rejected(tmp_path, timeout):
     with pytest.raises(ConversionError, match="timeout"):
         convert_tex_to_accessible_html(tmp_path / "source.tex", timeout=timeout)
+
+
+def test_output_cannot_overwrite_source(tmp_path):
+    source = tmp_path / "source.tex"
+    source.write_bytes(b"original")
+    with pytest.raises(ConversionError, match="must differ"):
+        convert_tex_to_accessible_html(source, output_file=source)
+    assert source.read_bytes() == b"original"
+
+
+def test_html_errors_preserve_previous_output(monkeypatch, tmp_path):
+    source = tmp_path / "source.tex"
+    source.write_text("text", encoding="utf-8")
+    output = source.with_suffix(".html")
+    output.write_bytes(b"previous")
+
+    def fake_run(tex_file, output_dir, build_dir, *args, **kwargs):
+        (build_dir / "source.html").write_text(
+            '<html><body><div><span>broken</div></span></body></html>',
+            encoding="utf-8",
+        )
+        return CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(converter, "run_make4ht", fake_run)
+    with pytest.raises(ConversionError, match="HTML structure is invalid"):
+        convert_tex_to_accessible_html(source)
+    assert output.read_bytes() == b"previous"
+
+
+def test_broken_link_does_not_replace_previous_html(monkeypatch, tmp_path):
+    source = tmp_path / "source.tex"
+    source.write_text("text", encoding="utf-8")
+    output = tmp_path / "renamed.html"
+    output.write_bytes(b"previous")
+
+    def fake_run(tex_file, output_dir, build_dir, *args, **kwargs):
+        (build_dir / "source.html").write_text(
+            '<html><body><a href="#missing">Reference</a></body></html>', encoding="utf-8"
+        )
+        return CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(converter, "run_make4ht", fake_run)
+    with pytest.raises(ConversionError, match="Link verification failed"):
+        convert_tex_to_accessible_html(source, output_file=output)
+    assert output.read_bytes() == b"previous"
+
+
+def test_output_rename_keeps_self_reference_destination(monkeypatch, tmp_path):
+    source = tmp_path / "source.tex"
+    source.write_text("text", encoding="utf-8")
+
+    def fake_run(tex_file, output_dir, build_dir, *args, **kwargs):
+        (build_dir / "source.html").write_text(
+            '<html><body><i id="eq1"></i><a href="source.html#eq1">Equation</a></body></html>', encoding="utf-8"
+        )
+        return CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(converter, "run_make4ht", fake_run)
+    result = convert_tex_to_accessible_html(source, output_file=tmp_path / "renamed.html")
+    assert 'href="#eq1"' in result.read_text(encoding="utf-8")
+
+
+def test_failed_publication_preserves_output_and_removes_pending(monkeypatch, tmp_path):
+    source = tmp_path / "verified.html"
+    source.write_bytes(b"new")
+    output = tmp_path / "result.html"
+    output.write_bytes(b"previous")
+
+    def fail_replace(*args):
+        raise PermissionError("locked destination")
+
+    monkeypatch.setattr(converter.os, "replace", fail_replace)
+    with pytest.raises(PermissionError):
+        converter.publish_verified_html(source, output)
+    assert output.read_bytes() == b"previous"
+    assert not list(tmp_path.glob(".tex-html-*.tmp"))
+
+
+def test_reused_build_does_not_publish_stale_html(monkeypatch, tmp_path):
+    source_dir = tmp_path / "input"
+    source_dir.mkdir()
+    source = source_dir / "source.tex"
+    source.write_text("text", encoding="utf-8")
+    build = tmp_path / "build"
+    (build / "make4ht").mkdir(parents=True)
+    (build / "make4ht/source.html").write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(converter, "run_make4ht", lambda *a, **k: CompletedProcess([], 0, "", ""))
+    with pytest.raises(ConversionError, match="did not create"):
+        convert_tex_to_accessible_html(source, build_dir=build)
+    assert not source.with_suffix(".html").exists()
 
 
 @pytest.mark.parametrize("keep_logs", [False, True])

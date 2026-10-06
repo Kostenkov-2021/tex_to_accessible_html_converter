@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import fnmatch
 import html as html_lib
+import json
 import math
 import os
 import re
@@ -21,6 +22,12 @@ import tex_compatibility
 from conversion_process import run_logged_process
 from mathml_fidelity import repair_mathml_fidelity
 from mathml_validation import validate_mathml_structure
+from html_validation import validate_html_structure
+from link_validation import repair_self_links, validate_links
+from latex_validation import validate_latex_document
+from formula_verification import verify_formulas
+from legacy_tex_migration import modernize_legacy_text
+from tex_source_validation import repair_tex_source, validate_tex_source
 from tex_compatibility import (
     MATHML_CONFIG,
     adapt_cfrac_for_tex4ht,
@@ -60,7 +67,7 @@ BODY_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 TOC_BLOCK_RE = re.compile(
-    r"(?P<heading><h(?P<level>[1-6])\b[^>]*>.*?</h(?P=level)>)"
+    r"(?P<heading><h(?P<level>[1-6])\b[^>]*>(?:(?!</?h[1-6]\b).)*</h(?P=level)>)"
     r"(?P<space>\s*)"
     r"(?P<toc><div\b(?=[^>]*\bclass\s*=\s*['\"][^'\"]*"
     r"\btableofcontents\b[^'\"]*['\"])[^>]*>.*?</div>)",
@@ -349,15 +356,19 @@ def save_conversion_logs(build_dir: Path, output_file: Path) -> Path:
     destination = logs_directory_for(output_file)
     destination.mkdir(parents=True, exist_ok=True)
     run_dir = Path(tempfile.mkdtemp(prefix="run-", dir=destination))
-    for path in build_dir.iterdir():
+    for path in build_dir.rglob("*"):
         if path.is_file() and path.suffix.lower() in {
             ".log",
             ".lg",
             ".txt",
             ".json",
             ".html",
+            ".aux",
+            ".xref",
         }:
-            shutil.copy2(path, run_dir / path.name)
+            saved_path = run_dir / path.relative_to(build_dir)
+            saved_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, saved_path)
     return run_dir
 
 
@@ -511,7 +522,6 @@ def run_make4ht(
     output_dir: Path,
     build_dir: Path,
     engine: str,
-    mode: str,
     tex_distribution: str = "auto",
     timeout: float = 300,
 ) -> subprocess.CompletedProcess[str]:
@@ -543,6 +553,17 @@ def run_make4ht(
     actual_distribution = "miktex" if is_miktex_path(make4ht) else "texlive"
     configure_tex_environment(env, build_dir, actual_distribution)
     text = tex_file.read_text(encoding="utf-8")
+    if not (build_dir / "source.original.tex").exists():
+        shutil.copy2(tex_file, build_dir / "source.original.tex")
+    text, source_repairs = repair_tex_source(text)
+    if source_repairs or not (build_dir / "source-repairs.txt").exists():
+        (build_dir / "source-repairs.txt").write_text(
+            "\n".join(source_repairs), encoding="utf-8"
+        )
+    source_errors = validate_tex_source(text)
+    if source_errors:
+        raise ConversionError("Unresolved TeX source errors:\n" + "\n".join(source_errors))
+    (build_dir / "source.corrected.tex").write_text(text, encoding="utf-8")
     text = adapt_cfrac_for_tex4ht(text)
     text = adapt_multline_for_tex4ht(text)
     text = adapt_literal_relations_for_tex4ht(text)
@@ -570,10 +591,8 @@ def run_make4ht(
         # MathML ``&lt;`` text as markup and corrupts otherwise valid formulas.
         "html5-common_domfilters",
         "-m",
-        # Draft mode omits passes needed for the table of contents and can
-        # drop forward-referenced formula material. Accessible output must be
-        # complete, so retain the UI/API option but use the complete pass set.
-        "default" if mode == "draft" else mode,
+        # Complete passes preserve the table of contents and forward references.
+        "default",
         "-d",
         str(output_dir),
         "-B",
@@ -592,7 +611,6 @@ def convert_tex_to_accessible_html(
     output_file: Path | None = None,
     build_dir: Path | None = None,
     engine: str = "lualatex",
-    mode: str = "default",
     keep_build: bool = False,
     tex_distribution: str = "auto",
     timeout: float = 300,
@@ -612,6 +630,8 @@ def convert_tex_to_accessible_html(
         raise ConversionError(f"The source file does not exist: {tex_file}")
 
     output_file = (output_file or tex_file.with_suffix(".html")).resolve()
+    if output_file == tex_file:
+        raise ConversionError("The output file must differ from the TeX source file.")
     output_dir = output_file.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -623,16 +643,26 @@ def convert_tex_to_accessible_html(
         build_dir.mkdir(parents=True, exist_ok=True)
     work_dir = build_dir / "source"
     make4ht_dir = build_dir / "make4ht"
+    if is_relative_to(tex_file, work_dir):
+        raise ConversionError("The build source directory must not contain the original TeX file.")
+    if make4ht_dir.exists():
+        make4ht_dir = Path(tempfile.mkdtemp(prefix="make4ht-", dir=build_dir))
 
     try:
-        staged_tex_file = stage_source_tree(tex_file, work_dir, build_dir)
         make4ht_dir.mkdir(parents=True, exist_ok=True)
+        original_dir = build_dir / "original-source"
+        if is_relative_to(tex_file, original_dir):
+            raise ConversionError("The build source directory must not contain the original TeX file.")
+        original_tex = stage_source_tree(tex_file, original_dir, build_dir)
+        prepare_validated_source(
+            original_tex, work_dir, make4ht_dir, engine, tex_distribution, timeout
+        )
+        staged_tex_file = work_dir / tex_file.name
         result = run_make4ht(
             staged_tex_file,
             make4ht_dir,
             make4ht_dir,
             engine,
-            mode,
             tex_distribution,
             timeout=timeout,
         )
@@ -667,34 +697,19 @@ def convert_tex_to_accessible_html(
                 f"make4ht did not create the expected file: {output_dir / f'{tex_file.stem}.html'}"
             )
 
-        html = generated_html.read_text(encoding="utf-8")
-        html = ensure_document_title(html)
-        html = normalize_heading_levels(html)
-        html = add_document_landmarks(html)
-        html = make_mathml_explicit(html)
-        html = mark_equation_layout_tables(html)
-        html = improve_data_table_accessibility(html)
-        html = repair_mathml_fidelity(html)
-        if generated_css.is_file():
-            css = generated_css.read_text(encoding="utf-8")
-            html = inline_css(html, css, tex_file.stem)
-            generated_css.unlink()
-        else:
-            html = rewrite_css_link(html, tex_file.stem, output_file.stem)
-        math_errors = validate_mathml_structure(html)
-        if math_errors:
-            (make4ht_dir / "postprocessed.invalid.html").write_text(
-                html, encoding="utf-8", newline="\n"
-            )
-            raise ConversionError(
-                "The MathML structure is invalid:\n" + "\n".join(math_errors[:20])
-            )
-        output_file.write_text(html, encoding="utf-8", newline="\n")
+        corrected_source_path = make4ht_dir / "source.corrected.tex"
+        corrected_source = (
+            corrected_source_path if corrected_source_path.is_file() else staged_tex_file
+        ).read_text(encoding="utf-8")
+        corrected_html = postprocess_generated_html(
+            generated_html, generated_css, corrected_source, output_file, make4ht_dir
+        )
 
         if keep_logs:
             save_conversion_logs(make4ht_dir, output_file)
         if keep_temporary_files:
             save_temporary_files(build_dir, output_file)
+        publish_verified_html(corrected_html, output_file)
         return output_file
     except Exception as error:
         details = str(error)
@@ -726,3 +741,125 @@ def first_existing(*paths: Path) -> Path:
         if path.exists():
             return path
     return paths[0]
+
+
+def publish_verified_html(source: Path, destination: Path) -> None:
+    """Prepare on the destination volume, then replace the previous result."""
+    pending = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=".tex-html-", suffix=".tmp", dir=destination.parent, delete=False
+        ) as stream:
+            pending = Path(stream.name)
+            with source.open("rb") as content:
+                shutil.copyfileobj(content, stream)
+        os.replace(pending, destination)
+    finally:
+        if pending is not None:
+            pending.unlink(missing_ok=True)
+
+
+def prepare_validated_source(original, work_dir, diagnostics, engine, distribution, timeout):
+    """Validate the first copy, repair a second copy, and validate any changes."""
+    make4ht = find_make4ht(distribution)
+    if make4ht is None:
+        raise ConversionError("make4ht was not found. Install TeX Live or MiKTeX with TeX4ht support.")
+    initial_errors = validate_latex_document(
+        original, engine=engine, make4ht=make4ht,
+        log_dir=diagnostics / "tex-original", timeout=timeout,
+    )
+    staged = stage_source_tree(original, work_dir, work_dir)
+    text = staged.read_text(encoding="utf-8")
+    corrected, repairs = repair_tex_source(text)
+    corrected, migrations = modernize_legacy_text(corrected)
+    (diagnostics / "legacy-migrations.json").write_text(
+        json.dumps(migrations, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    repairs.extend(f"Line {item['line']}: modernized {item['old']} to {item['new']}" for item in migrations)
+    (diagnostics / "source-repairs.txt").write_text("\n".join(repairs), encoding="utf-8")
+    shutil.copy2(original, diagnostics / "source.original.tex")
+    if repairs:
+        staged.write_text(corrected, encoding="utf-8")
+    shutil.copy2(staged, diagnostics / "source.corrected.tex")
+    remaining = initial_errors
+    if repairs:
+        remaining = validate_latex_document(
+            staged, engine=engine, make4ht=make4ht,
+            log_dir=diagnostics / "tex-corrected", timeout=timeout,
+        )
+    (diagnostics / "tex-validation.json").write_text(
+        json.dumps({"original_errors": initial_errors, "repairs": repairs,
+                    "remaining_errors": remaining}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    if remaining:
+        raise ConversionError("Unresolved TeX source errors:\n" + "\n".join(remaining[:20]))
+
+
+def postprocess_generated_html(generated_html, generated_css, corrected_source, output_file, diagnostics):
+    """Repair and validate retained engine output without rerunning TeX."""
+    html = generated_html.read_text(encoding="utf-8")
+    initial_checks = {
+        "html": validate_html_structure(html),
+        "mathml": validate_mathml_structure(html),
+        "semantic_equivalence": "not_proven",
+    }
+    (diagnostics / "validation-before-repair.json").write_text(
+        json.dumps(initial_checks, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    html = normalize_heading_levels(html)
+    html = ensure_document_title(html)
+    html = add_document_landmarks(html)
+    html = make_mathml_explicit(html)
+    html = mark_equation_layout_tables(html)
+    html = improve_data_table_accessibility(html)
+    html = repair_mathml_fidelity(html)
+    if generated_css.is_file():
+        css = generated_css.read_text(encoding="utf-8")
+        html = inline_css(html, css, generated_html.stem)
+    else:
+        html = rewrite_css_link(html, generated_html.stem, output_file.stem)
+    html, link_repairs = repair_self_links(html, generated_html.name)
+    link_report = validate_links(html, output_file, generated_html.with_suffix(".aux"), corrected_source)
+    link_report["repairs"] = link_repairs
+    (diagnostics / "link-verification.json").write_text(
+        json.dumps(link_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    html, formula_report = verify_formulas(corrected_source, html)
+    (diagnostics / "formula-verification.json").write_text(
+        json.dumps(formula_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    # Keep the result accessible even when the user retains only HTML.
+    embedded_report = json.dumps(formula_report, ensure_ascii=False).replace("<", "\\u003c")
+    report_tag = f'<script type="application/json" id="tex-formula-verification">{embedded_report}</script>'
+    if "</body>" in html:
+        html = html.replace("</body>", report_tag + "\n</body>", 1)
+    else:
+        html += "\n" + report_tag
+    math_errors = validate_mathml_structure(html)
+    html_errors = validate_html_structure(html)
+    (diagnostics / "validation-after-repair.json").write_text(
+        json.dumps({"html": html_errors, "mathml": math_errors,
+                    "semantic_equivalence": "not_proven",
+                    "formula_notation": formula_report["status"]},
+                   ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    if math_errors:
+        (diagnostics / "postprocessed.invalid.html").write_text(
+            html, encoding="utf-8", newline="\n"
+        )
+        raise ConversionError(
+            "The MathML structure is invalid:\n" + "\n".join(math_errors[:20])
+        )
+    corrected_html = diagnostics / "postprocessed.html"
+    corrected_html.write_text(html, encoding="utf-8", newline="\n")
+    if formula_report["errors"]:
+        raise ConversionError("Formula verification failed:\n" + "\n".join(formula_report["errors"][:20]))
+    if html_errors:
+        raise ConversionError(
+            "The HTML structure is invalid:\n" + "\n".join(html_errors[:20])
+        )
+    if link_report["errors"]:
+        raise ConversionError("Link verification failed:\n" + "\n".join(link_report["errors"][:20]))
+
+    return corrected_html

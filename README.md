@@ -13,9 +13,10 @@ A Windows application that converts LaTeX documents to HTML5 with Presentation M
 - batch conversion of individual `.tex` files or every `.tex` file in a folder;
 - TeX Live and MiKTeX support;
 - `latex`, `lualatex`, and `xelatex` engines;
-- standard and draft UI modes (both currently use the complete TeX pass set to preserve references and the table of contents);
+- complete TeX passes to preserve references and the table of contents;
 - embedded CSS and explicit MathML namespaces;
 - MathML structure and common fidelity checks before replacing an existing result;
+- local hyperlink and supported TeX label checks before publication;
 - time limits and four artifact-retention choices: HTML only, logs, temporary files, or logs and temporary files;
 - isolated source staging: the original document is never modified;
 - narrowly scoped compatibility changes applied only to the staged copy, including safe MathML relations, reference keys, prime superscripts, `multline`, and `\cfrac` handling.
@@ -57,7 +58,7 @@ The CLI does not import wxPython, so it is suitable for servers and automation:
 ```text
 python tex_to_accessible_html_cli.py INPUT [INPUT ...] [--recursive]
   [-o OUTPUT_DIR] [--engine latex|lualatex|xelatex]
-  [--mode default|draft] [--tex-distribution auto|texlive|miktex]
+  [--tex-distribution auto|texlive|miktex]
   [--timeout SECONDS] [--keep html|logs|temporary|all]
 ```
 
@@ -70,6 +71,14 @@ python .\tex_to_accessible_html_cli.py .\lectures --recursive -o .\html --keep l
 ```
 
 ## How it works
+
+`link_validation.py` resolves hyperlinks at the saved HTML location, respecting the first base URL and case-sensitive fragment IDs. Exact self-file references with existing anchors become fragment links so output renaming preserves their destinations. Broken local links and undefined supported TeX references block publication; diagnostic details are saved in `link-verification.json`. Auxiliary `.aux` and `.xref` files are retained with logs. Unsupported label mappings and external URLs have explicit limits. See the [conversion and link audit (Russian)](docs/math-mag-conversion-and-links-2026-10-05.md).
+
+Recognized grouped legacy text font switches are modernized in the staged copy, preserving their font reset: for example, `\it` becomes `\normalfont\itshape` and `\bf` becomes `\normalfont\bfseries`. Math, comments, literal examples and preamble definitions are preserved. Changes are recorded in `legacy-migrations.json` and the changed copy is validated again. User macros and babel's localized mathematical operator names are not automatically renamed.
+
+Formula correspondence is recorded in `formula-verification.json` when retaining logs and in the `tex-formula-verification` JSON block embedded in HTML in every retention mode. Statuses are `confirmed`, `mismatch`, and `unsupported`. Detected differences block publication; unsupported constructs allow conversion with an explicit report status. This checks supported notation, not algebraic equivalence or fidelity of the entire document.
+
+A separate LaTeX engine pass validates the first staged copy before conversion. Known typos are repaired in a second copy; changed documents are validated again. HTML and MathML are checked before and after repairs, and the destination is replaced only after validation and complete preparation. These checks do not prove semantic equivalence for arbitrary TeX documents. See the [algorithm review (Russian)](docs/algorithm-review-ru.md) for the stages, limitations and sources.
 
 For each document, `converter.py` creates an isolated build directory and stages the source tree without changing the original. `tex_compatibility.py` applies narrowly scoped TeX4ht compatibility changes to the staged copy. `conversion_process.py` runs `make4ht` with the chosen TeX engine and enforces the timeout. The generated HTML is then normalized; `mathml_fidelity.py` repairs known TeX4ht MathML distortions, and `mathml_validation.py` rejects structurally invalid MathML. Only a validated result replaces the destination HTML. Logs contain diagnostic output; temporary retention copies the complete isolated build tree into a timestamp-unique `*.html.temporary/run-*` directory. Logs use `*.html.logs/run-*`.
 

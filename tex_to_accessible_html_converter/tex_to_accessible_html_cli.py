@@ -49,7 +49,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--engine", choices=("latex", "lualatex", "xelatex"), default="lualatex"
     )
-    parser.add_argument("--mode", choices=("default", "draft"), default="default")
     parser.add_argument(
         "--tex-distribution", choices=("auto", "texlive", "miktex"), default="auto"
     )
@@ -86,7 +85,6 @@ def main(argv: list[str] | None = None) -> int:
                 tex_file=tex_file,
                 output_file=output_file,
                 engine=args.engine,
-                mode=args.mode,
                 tex_distribution=args.tex_distribution,
                 timeout=args.timeout,
                 keep_logs=keep_logs,

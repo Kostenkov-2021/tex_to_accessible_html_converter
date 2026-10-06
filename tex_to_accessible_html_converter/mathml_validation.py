@@ -55,6 +55,16 @@ def validate_mathml_structure(text: str) -> list[str]:
                         )
                     if tag == "merror":
                         errors.append(f"MathML #{count}: merror in generated formula")
+                    if tag in {"mi", "mn", "mo", "ms", "mtext"} and any(
+                        (child.tag.startswith("{http://www.w3.org/1998/Math/MathML}")
+                         or ("}" not in child.tag and child.tag in {
+                             "math", "mrow", "mstyle", "msqrt", "mi", "mn", "mo",
+                             "mtext", "ms", "mtable", "mtr", "mtd", *ARITIES,
+                         }))
+                        and child.tag.rsplit("}", 1)[-1] not in {"mglyph", "malignmark"}
+                        for child in node
+                    ):
+                        errors.append(f"MathML #{count}: mathematical element inside token {tag}")
                     has_raw_text = (node.text or "").strip() or any(
                         (child.tail or "").strip() for child in node
                     )

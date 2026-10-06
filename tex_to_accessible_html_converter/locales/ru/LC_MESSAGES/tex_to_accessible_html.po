@@ -15,6 +15,24 @@ msgstr ""
 msgid "TeX to Accessible HTML"
 msgstr "TeX в доступный HTML"
 
+msgid "The HTML structure is invalid:"
+msgstr "Недопустимая структура HTML:"
+
+msgid "The output file must differ from the TeX source file."
+msgstr "Выходной файл должен отличаться от исходного файла TeX."
+
+msgid "Unresolved TeX source errors:"
+msgstr "Неустранённые ошибки исходного файла TeX:"
+
+msgid "The build source directory must not contain the original TeX file."
+msgstr "Рабочая папка исходников не должна содержать оригинал файла TeX."
+
+msgid "LaTeX validation engine was not found:"
+msgstr "Движок проверки LaTeX не найден:"
+
+msgid "Formula verification failed:"
+msgstr "Проверка соответствия формул не пройдена:"
+
 msgid "TeX files"
 msgstr "Файлы TeX"
 
@@ -87,21 +105,6 @@ msgstr "Дистрибутив TeX"
 
 msgid "Choose automatic detection, MiKTeX, or TeX Live for make4ht."
 msgstr "Выберите автоматическое определение, MiKTeX или TeX Live для запуска make4ht."
-
-msgid "Mode:"
-msgstr "Режим:"
-
-msgid "Standard"
-msgstr "Обычный"
-
-msgid "Fast draft"
-msgstr "Быстрый черновой"
-
-msgid "Conversion mode"
-msgstr "Режим конвертации"
-
-msgid "Standard mode performs more TeX passes; fast draft mode is usually quicker."
-msgstr "Обычный режим делает больше проходов TeX, быстрый черновой режим обычно работает быстрее."
 
 msgid "Time limit per file (seconds):"
 msgstr "Лимит времени на файл (сек.):"

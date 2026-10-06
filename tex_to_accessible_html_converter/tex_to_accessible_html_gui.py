@@ -37,11 +37,6 @@ def tex_distribution_choices() -> list[tuple[str, str]]:
     return [(_("Automatic"), "auto"), ("MiKTeX", "miktex"), ("TeX Live", "texlive")]
 
 
-def mode_choices() -> list[tuple[str, str]]:
-    """Return localized labels and internal conversion-mode values."""
-    return [(_("Standard"), "default"), (_("Fast draft"), "draft")]
-
-
 def retention_choices() -> list[tuple[str, str]]:
     """Return localized labels and internal artifact-retention values."""
     return [
@@ -69,16 +64,28 @@ if _ACCESSIBLE_BASE is not None:
             """Return the accessible name for the control itself."""
             if child_id == getattr(wx, "ACC_SELF", 0):
                 return getattr(wx, "ACC_OK", 0), self.name
-            return getattr(wx, "ACC_NOT_SUPPORTED", 1), ""
+            return wx.ACC_NOT_IMPLEMENTED, ""
 
         def GetDescription(self, child_id: int) -> tuple[int, str]:
             """Return the accessible description for the control itself."""
             if child_id == getattr(wx, "ACC_SELF", 0):
                 return getattr(wx, "ACC_OK", 0), self.description
-            return getattr(wx, "ACC_NOT_SUPPORTED", 1), ""
+            return wx.ACC_NOT_IMPLEMENTED, ""
+
+    class AccessibleFileList(AccessibleText):
+        """Expose each file's name and full path as its accessible name."""
+
+        def GetName(self, child_id: int) -> tuple[int, str]:
+            """Map one-based accessibility child IDs to current list rows."""
+            window = self.GetWindow()
+            if 1 <= child_id <= window.GetCount():
+                path = Path(window.GetString(child_id - 1))
+                return wx.ACC_OK, f"{path.name}, {path}"
+            return super().GetName(child_id)
 
 else:
     AccessibleText = None  # type: ignore[assignment,misc]
+    AccessibleFileList = None  # type: ignore[assignment,misc]
 
 
 def set_accessible_text(
@@ -92,7 +99,12 @@ def set_accessible_text(
         control.SetHelpText(accessible_description)
     if AccessibleText is not None and hasattr(control, "SetAccessible"):
         try:
-            accessible = AccessibleText(control, name, accessible_description)
+            accessible_class = (
+                AccessibleFileList
+                if isinstance(control, getattr(wx, "ListBox", ()))
+                else AccessibleText
+            )
+            accessible = accessible_class(control, name, accessible_description)
             control.SetAccessible(accessible)
             control._accessible_text = accessible
         except (AttributeError, TypeError, RuntimeError):
@@ -135,7 +147,6 @@ class ConverterFrame(wx.Frame):
         self.worker: threading.Thread | None = None
         self.results: queue.Queue[tuple[str, str]] = queue.Queue()
         self.tex_distribution_choices = tex_distribution_choices()
-        self.mode_choices = mode_choices()
         self.retention_choices = retention_choices()
 
         panel = wx.Panel(self)
@@ -245,24 +256,6 @@ class ConverterFrame(wx.Frame):
             _("Choose automatic detection, MiKTeX, or TeX Live for make4ht."),
         )
         options_row.Add(self.tex_distribution_choice, 0, wx.RIGHT, 18)
-        options_row.Add(
-            wx.StaticText(panel, label=_("Mode:")),
-            0,
-            wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
-            6,
-        )
-        self.mode_choice = wx.Choice(
-            panel, choices=[label for label, _value in self.mode_choices]
-        )
-        self.mode_choice.SetSelection(1)
-        set_accessible_text(
-            self.mode_choice,
-            _("Conversion mode"),
-            _(
-                "Standard mode performs more TeX passes; fast draft mode is usually quicker."
-            ),
-        )
-        options_row.Add(self.mode_choice, 0)
         root.Add(options_row, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
 
         timeout_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -378,7 +371,6 @@ class ConverterFrame(wx.Frame):
             self.tex_distribution_choices,
             state.get("distribution"),
         )
-        self.select_value(self.mode_choice, self.mode_choices, state.get("mode"))
         timeout = state.get("timeout")
         if isinstance(timeout, int):
             self.timeout_input.SetValue(timeout)
@@ -401,7 +393,6 @@ class ConverterFrame(wx.Frame):
             "distribution": selected_value(
                 self.tex_distribution_choice, self.tex_distribution_choices
             ),
-            "mode": selected_value(self.mode_choice, self.mode_choices),
             "timeout": self.timeout_input.GetValue(),
             "retention": selected_value(self.retention_box, self.retention_choices),
             "custom_folder": self.custom_folder_radio.GetValue(),
@@ -609,7 +600,6 @@ class ConverterFrame(wx.Frame):
                 list(self.files),
                 output_dir,
                 selected_value(self.engine_choice, ENGINE_CHOICES),
-                selected_value(self.mode_choice, self.mode_choices),
                 selected_value(
                     self.tex_distribution_choice, self.tex_distribution_choices
                 ),
@@ -629,7 +619,6 @@ class ConverterFrame(wx.Frame):
         files: list[Path],
         output_dir: Path | None,
         engine: str,
-        mode: str,
         tex_distribution: str = "auto",
         timeout: float = 300,
         keep_logs: bool = False,
@@ -653,7 +642,6 @@ class ConverterFrame(wx.Frame):
                     tex_file=tex_file,
                     output_file=output_file,
                     engine=engine,
-                    mode=mode,
                     tex_distribution=tex_distribution,
                     timeout=timeout,
                     keep_logs=keep_logs,
@@ -766,7 +754,6 @@ class ConverterFrame(wx.Frame):
             self.tex_distribution_choice.Enable(not busy)
         for name in (
             "engine_choice",
-            "mode_choice",
             "timeout_input",
             "retention_box",
             "language_choice",
