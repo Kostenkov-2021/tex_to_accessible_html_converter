@@ -28,6 +28,7 @@ from converter import (
 @pytest.fixture(autouse=True)
 def isolate_external_latex_validation(monkeypatch):
     """Pipeline unit tests replace native compilation, tested independently."""
+    monkeypatch.setattr(converter, "find_make4ht", lambda distribution="auto": "make4ht")
     monkeypatch.setattr(converter, "validate_latex_document", lambda *args, **kwargs: [])
 
 
