@@ -1,0 +1,315 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: tex-to-accessible-html-converter 0.1.0\n"
+"POT-Creation-Date: 2026-09-30 00:00+0300\n"
+"PO-Revision-Date: 2026-09-30 00:00+0300\n"
+"Last-Translator: Project contributors\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Poedit 3.9\n"
+
+msgid "TeX to Accessible HTML"
+msgstr "TeX в доступный HTML"
+
+msgid "The HTML structure is invalid:"
+msgstr "Недопустимая структура HTML:"
+
+msgid "The output file must differ from the TeX source file."
+msgstr "Выходной файл должен отличаться от исходного файла TeX."
+
+msgid "Unresolved TeX source errors:"
+msgstr "Неустранённые ошибки исходного файла TeX:"
+
+msgid "The build source directory must not contain the original TeX file."
+msgstr "Рабочая папка исходников не должна содержать оригинал файла TeX."
+
+msgid "LaTeX validation engine was not found:"
+msgstr "Движок проверки LaTeX не найден:"
+
+msgid "Formula verification failed:"
+msgstr "Проверка соответствия формул не пройдена:"
+
+msgid "TeX files"
+msgstr "Файлы TeX"
+
+msgid "Language:"
+msgstr "Язык:"
+
+msgid "Interface language"
+msgstr "Язык интерфейса"
+
+msgid "Change the application interface language."
+msgstr "Изменить язык интерфейса приложения."
+
+msgid "Open documentation"
+msgstr "Открыть документацию"
+
+msgid "Open the documentation for the current interface language. Keyboard shortcut: F1."
+msgstr "Открыть документацию на текущем языке интерфейса. Сочетание клавиш: F1."
+
+#, python-brace-format
+msgid "Documentation could not be opened: {path}"
+msgstr "Не удалось открыть документацию: {path}"
+
+msgid "Documentation unavailable"
+msgstr "Документация недоступна"
+
+msgid "Files that will be converted to HTML."
+msgstr "Список файлов, которые будут преобразованы в HTML."
+
+msgid "Add .tex"
+msgstr "Добавить .tex"
+
+msgid "Remove selected"
+msgstr "Удалить выбранные"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "HTML output"
+msgstr "Сохранение HTML"
+
+msgid "In the same folder as each .tex file"
+msgstr "В той же папке, где находится каждый .tex файл"
+
+msgid "In the selected folder:"
+msgstr "В выбранной папке:"
+
+msgid "Browse..."
+msgstr "Обзор..."
+
+msgid "HTML output folder"
+msgstr "Папка для сохранения HTML"
+
+msgid "Folder used for HTML files when the selected-folder option is enabled."
+msgstr "Папка, в которую будут сохранены HTML-файлы."
+
+msgid "Engine:"
+msgstr "Движок:"
+
+msgid "TeX engine"
+msgstr "Движок TeX"
+
+msgid "TeX engine used by make4ht."
+msgstr "Движок TeX для запуска make4ht."
+
+msgid "Automatic"
+msgstr "Автоматически"
+
+msgid "TeX distribution"
+msgstr "Дистрибутив TeX"
+
+msgid "Choose automatic detection, MiKTeX, or TeX Live for make4ht."
+msgstr "Выберите автоматическое определение, MiKTeX или TeX Live для запуска make4ht."
+
+msgid "Time limit per file (seconds):"
+msgstr "Лимит времени на файл (сек.):"
+
+msgid "Conversion time limit"
+msgstr "Лимит времени конвертации"
+
+msgid "Maximum processing time for one file. TeX processes are stopped when the limit expires."
+msgstr "Максимальное время обработки одного файла в секундах. По истечении этого времени процессы TeX будут остановлены."
+
+msgid "Keep logs"
+msgstr "Сохранять журналы"
+
+msgid "Keep conversion logs in a separate folder next to the HTML file."
+msgstr "Сохранять журналы конвертации в отдельной папке рядом с HTML."
+
+msgid "Conversion log"
+msgstr "Журнал конвертации"
+
+msgid "Conversion progress and error messages."
+msgstr "Сообщения о ходе конвертации и ошибках."
+
+msgid "Conversion progress"
+msgstr "Прогресс конвертации"
+
+msgid "A moving indicator means conversion is running. The number of processed files is shown in the status bar."
+msgstr "Движущийся индикатор означает, что идёт конвертация. Количество обработанных файлов показано в строке состояния."
+
+msgid "Convert"
+msgstr "Конвертировать"
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Ready"
+msgstr "Готово"
+
+msgid "Select .tex files"
+msgstr "Выберите .tex-файлы"
+
+msgid "TeX files (*.tex)|*.tex"
+msgstr "Файлы TeX (*.tex)|*.tex"
+
+msgid "Select an HTML output folder"
+msgstr "Выберите папку для HTML"
+
+msgid "Select at least one .tex file."
+msgstr "Выберите хотя бы один .tex-файл."
+
+msgid "No files selected"
+msgstr "Файлы не выбраны"
+
+msgid "Select a folder for the HTML output."
+msgstr "Выберите папку для сохранения HTML."
+
+msgid "No folder selected"
+msgstr "Папка не выбрана"
+
+#, python-brace-format
+msgid "Converting: 0 of {total}"
+msgstr "Конвертация: 0 из {total}"
+
+msgid "Conversion started."
+msgstr "Конвертация началась."
+
+#, python-brace-format
+msgid "Converting: {path}"
+msgstr "Конвертация: {path}"
+
+#, python-brace-format
+msgid "Unexpected error: {type}: {error}"
+msgstr "Непредвиденная ошибка: {type}: {error}"
+
+#, python-brace-format
+msgid "Processed: {current} of {total}"
+msgstr "Обработано: {current} из {total}"
+
+#, python-brace-format
+msgid "Files to convert: {total}"
+msgstr "Файлов для конвертации: {total}"
+
+#, python-brace-format
+msgid "Done: {path}"
+msgstr "Готово: {path}"
+
+#, python-brace-format
+msgid "Logs: {path}"
+msgstr "Журналы: {path}"
+
+#, python-brace-format
+msgid "Error: {message}"
+msgstr "Ошибка: {message}"
+
+#, python-brace-format
+msgid "Finished. Successful: {successes}. Errors: {failures}. Total: {total}."
+msgstr "Завершено. Успешно: {successes}. Ошибок: {failures}. Всего: {total}."
+
+msgid "Converting..."
+msgstr "Конвертация..."
+
+msgid "wxPython is required for the graphical interface. Install it in the Python environment used to run this application."
+msgstr "Для графического интерфейса требуется wxPython. Установите его в Python-окружение, из которого запускается приложение."
+
+msgid "TeX Live make4ht was not found. Install TeX Live with TeX4ht support and add its bin directory to PATH."
+msgstr "Программа make4ht из TeX Live не найдена. Установите TeX Live с поддержкой TeX4ht и добавьте его папку bin в PATH."
+
+msgid "make4ht was not found. Install MiKTeX with the make4ht and TeX4ht packages."
+msgstr "Программа make4ht не найдена. Установите MiKTeX с пакетами make4ht и TeX4ht."
+
+msgid "make4ht was not found. Install TeX Live or MiKTeX with TeX4ht support."
+msgstr "Программа make4ht не найдена. Установите TeX Live или MiKTeX с поддержкой TeX4ht."
+
+msgid "Unknown TeX distribution:"
+msgstr "Неизвестный дистрибутив TeX:"
+
+msgid "Unknown TeX engine:"
+msgstr "Неизвестный движок TeX:"
+
+msgid "The timeout must be a positive finite number."
+msgstr "Лимит времени должен быть положительным конечным числом."
+
+msgid "The timeout must be greater than zero."
+msgstr "Время ожидания должно быть больше нуля."
+
+msgid "The source file does not exist:"
+msgstr "Исходный файл не существует:"
+
+msgid "make4ht failed."
+msgstr "Программа make4ht завершилась с ошибкой."
+
+msgid "Program output:"
+msgstr "Вывод программы:"
+
+msgid "Error output:"
+msgstr "Вывод ошибок:"
+
+msgid "TeX errors occurred while creating HTML:"
+msgstr "Ошибки TeX при создании HTML:"
+
+msgid "make4ht did not create the expected file:"
+msgstr "Программа make4ht не создала ожидаемый файл:"
+
+msgid "The MathML structure is invalid:"
+msgstr "Повреждена структура MathML:"
+
+msgid "Diagnostics saved to:"
+msgstr "Диагностика сохранена:"
+
+msgid "Could not copy logs:"
+msgstr "Не удалось скопировать журналы:"
+
+msgid "Build directory:"
+msgstr "Рабочая папка:"
+
+msgid "The conversion timed out after"
+msgstr "Превышено время ожидания конвертации через"
+
+msgid "seconds."
+msgstr "секунд."
+
+msgid "Windows could not stop process"
+msgstr "Windows не удалось остановить процесс"
+
+msgid "Diagnostics:"
+msgstr "Диагностика:"
+
+msgid "The processes were stopped."
+msgstr "Процессы остановлены."
+
+msgid "Add folder"
+msgstr "Добавить папку"
+
+msgid "HTML files only"
+msgstr "Только файлы HTML"
+
+msgid "HTML files and logs"
+msgstr "Файлы HTML и журналы"
+
+msgid "HTML files and temporary files"
+msgstr "Файлы HTML и временные файлы"
+
+msgid "HTML files, logs, and temporary files"
+msgstr "Файлы HTML, журналы и временные файлы"
+
+msgid "Files to keep"
+msgstr "Сохраняемые файлы"
+
+msgid "Choose whether to keep only HTML, logs, temporary files, or both logs and temporary files."
+msgstr "Выберите, сохранять ли только HTML, журналы, временные файлы либо журналы вместе с временными файлами."
+
+msgid "Select a folder containing .tex files"
+msgstr "Выберите папку с файлами .tex"
+
+msgid "The selected folder contains no .tex files."
+msgstr "В выбранной папке нет файлов .tex."
+
+msgid "No TeX files found"
+msgstr "Файлы TeX не найдены"
+
+#, python-brace-format
+msgid "Temporary files: {path}"
+msgstr "Временные файлы: {path}"
+
+msgid "Temporary files saved to:"
+msgstr "Временные файлы сохранены:"
+
+msgid "Could not copy temporary files:"
+msgstr "Не удалось скопировать временные файлы:"
