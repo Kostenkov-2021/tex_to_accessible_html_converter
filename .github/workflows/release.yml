@@ -21,7 +21,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       revision: ${{ steps.version.outputs.revision }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
