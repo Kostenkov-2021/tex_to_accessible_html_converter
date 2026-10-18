@@ -23,8 +23,9 @@ COPY docs/README.html docs/README_RU.html docs/
 COPY scripts/check_tex_integration.py scripts/
 COPY tests/fixtures/integration.tex tests/fixtures/
 RUN python packaging/compile_translations.py && python -m pytest -q
-RUN python scripts/check_tex_integration.py --engine latex \
+RUN bash packaging/prepare_tex_fonts.sh tests/fixtures/integration.tex \
     && python scripts/check_tex_integration.py --engine lualatex \
+    && python scripts/check_tex_integration.py --engine latex \
     && python scripts/check_tex_integration.py --engine xelatex
 
 FROM test AS build

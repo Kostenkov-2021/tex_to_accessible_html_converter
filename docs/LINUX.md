@@ -166,6 +166,14 @@ documents may need font metrics generated first (for example,
 `mktextfm larm1000` for that missing font); use the font name reported by TeX.
 The converter preserves the distribution's cache settings.
 
+The LuaLaTeX integration job prepares the fixture's legacy T2A font metrics
+explicitly with `bash packaging/prepare_tex_fonts.sh tests/fixtures/integration.tex`.
+This uses LaTeX's automatic metric generation in the same user's TeX cache;
+the temporary document outputs are removed. Docker performs the same preparation
+and runs LuaLaTeX integration first, so a preceding conversion cannot silently
+supply its font metrics. No additional font bundle or fixed list of font sizes
+is needed; preparation follows the fixture when it changes.
+
 Стадия `verify` проверяет готовые исполняемые файлы в отдельном окружении без
 копирования среды сборки. GUI запускается под Xvfb; CLI преобразует пример тремя
 движками. Локальная установка TeX на Windows для этих проверок не нужна.

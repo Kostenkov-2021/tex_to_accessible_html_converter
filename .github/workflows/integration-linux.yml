@@ -8,6 +8,7 @@ on:
       - '.github/workflows/integration-linux.yml'
       - 'tests/fixtures/**'
       - 'scripts/check_tex_integration.py'
+      - 'packaging/prepare_tex_fonts.sh'
   schedule:
     - cron: '11 5 * * 2'
 
@@ -33,6 +34,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y texlive-extra-utils texlive-latex-extra texlive-luatex texlive-xetex texlive-lang-cyrillic texlive-fonts-recommended cm-super
+      - name: Prepare legacy Cyrillic font metrics
+        if: matrix.engine == 'lualatex'
+        run: bash packaging/prepare_tex_fonts.sh tests/fixtures/integration.tex
       - name: Convert and validate fixtures
         env:
           PYTHONUTF8: '1'
