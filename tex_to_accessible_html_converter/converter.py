@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -595,15 +596,24 @@ def run_make4ht(
         "default",
         "-d",
         str(output_dir),
-        "-B",
-        str(build_dir),
+        # Ubuntu's make4ht predates -B. Its working directory is already an
+        # isolated source copy, so keeping intermediates there is safe.
+        *([] if sys.platform.startswith("linux") else ["-B", str(build_dir)]),
         tex_file.name,
         "mathml",
     ]
 
-    return run_logged_process(
-        command, cwd=tex_file.parent, env=env, log_dir=build_dir, timeout=timeout
-    )
+    try:
+        return run_logged_process(
+            command, cwd=tex_file.parent, env=env, log_dir=build_dir, timeout=timeout
+        )
+    finally:
+        if sys.platform.startswith("linux") and tex_file.parent.resolve() != build_dir.resolve():
+            # Preserve validation and link-mapping inputs even after failure.
+            for suffix in (".log", ".lg", ".aux", ".xref"):
+                artifact = tex_file.with_suffix(suffix)
+                if artifact.is_file():
+                    shutil.copy2(artifact, build_dir / artifact.name)
 
 
 def convert_tex_to_accessible_html(

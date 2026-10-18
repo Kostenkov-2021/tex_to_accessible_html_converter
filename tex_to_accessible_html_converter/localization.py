@@ -6,6 +6,7 @@ import gettext
 import json
 import locale
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,15 @@ LOCALE_DIR = Path(__file__).with_name("locales")
 
 def settings_path() -> Path:
     """Return the per-user settings file without depending on wxPython."""
-    base = Path(os.environ.get("APPDATA") or Path.home())
+    if sys.platform.startswith("linux"):
+        configured = os.environ.get("XDG_CONFIG_HOME", "")
+        base = (
+            Path(configured)
+            if configured and Path(configured).is_absolute()
+            else Path.home() / ".config"
+        )
+    else:
+        base = Path(os.environ.get("APPDATA") or Path.home())
     return base / "TeXToAccessibleHTML" / "settings.json"
 
 

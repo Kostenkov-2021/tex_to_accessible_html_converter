@@ -1,0 +1,46 @@
+name: Linux TeX integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tex_to_accessible_html_converter/**'
+      - '.github/workflows/integration-linux.yml'
+      - 'tests/fixtures/**'
+      - 'scripts/check_tex_integration.py'
+  schedule:
+    - cron: '11 5 * * 2'
+
+permissions:
+  contents: read
+
+jobs:
+  convert:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [latex, lualatex, xelatex]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-extra-utils texlive-latex-extra texlive-luatex texlive-xetex texlive-lang-cyrillic texlive-fonts-recommended cm-super
+      - name: Convert and validate fixtures
+        env:
+          PYTHONUTF8: '1'
+        run: python scripts/check_tex_integration.py --engine '${{ matrix.engine }}'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: linux-tex-integration-${{ matrix.engine }}
+          path: build/tex-integration/${{ matrix.engine }}
+          if-no-files-found: warn
+          retention-days: 7

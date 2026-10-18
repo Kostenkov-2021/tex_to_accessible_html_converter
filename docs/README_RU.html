@@ -16,7 +16,8 @@
 <body>
 <header>
   <h1>Конвертер TeX в доступный HTML</h1>
-  <p>Приложение для Windows преобразует документы LaTeX в HTML5 с Presentation MathML для визуального отображения, программ экранного доступа, брайлевского вывода и MathCAT.</p>
+  <p>Приложение для Windows и Linux преобразует документы LaTeX в HTML5 с Presentation MathML для визуального отображения, программ экранного доступа, брайлевского вывода и MathCAT.</p>
+  <p>Linux: нужны Python 3.10+, wxPython 4.2+ и TeX Live с make4ht. В Ubuntu 24.04 установите через apt пакеты <code>python3-wxgtk4.0 texlive-extra-utils texlive-latex-extra texlive-luatex texlive-xetex texlive-lang-cyrillic texlive-fonts-recommended cm-super</code>. GUI запускается командой <code>/usr/bin/python3 tex_to_accessible_html_converter/tex_to_accessible_html_gui.py</code>. Отдельный архив Linux содержит исполняемые файлы <code>TeXToAccessibleHTML</code> и <code>TeXToAccessibleHTMLCLI</code>. Для Windows сохранены отдельные установщик и ZIP. Настройки Linux сохраняются в <code>~/.config/TeXToAccessibleHTML/settings.json</code>, если не задан XDG_CONFIG_HOME.</p>
 </header>
 <nav aria-label="Разделы документации">
   <h2>Содержание</h2>
