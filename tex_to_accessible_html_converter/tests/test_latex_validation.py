@@ -6,17 +6,21 @@ import converter
 import latex_validation
 
 
+@pytest.mark.parametrize("platform", ["win32", "linux"])
 @pytest.mark.parametrize("returncode, log, failed", [
     (0, "normal log", False), (0, "! Undefined control sequence.\n", True),
     (1, "normal log", True), (0, None, True),
 ])
-def test_native_validation_checks_exit_and_log(monkeypatch, tmp_path, returncode, log, failed):
-    (tmp_path / "latex.exe").touch()
+def test_native_validation_checks_exit_and_log(monkeypatch, tmp_path, returncode, log, failed, platform):
+    monkeypatch.setattr(latex_validation.sys, "platform", platform)
+    suffix = ".exe" if platform == "win32" else ""
+    executable = tmp_path / f"latex{suffix}"
+    executable.touch()
     source = tmp_path / "document.tex"
     source.write_text("text", encoding="utf-8")
 
     def fake_run(command, **kwargs):
-        assert command[0] == str(tmp_path / "latex.exe")
+        assert command[0] == str(executable)
         assert "-halt-on-error" in command
         assert kwargs["cwd"] == tmp_path
         if log is not None:
