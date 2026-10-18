@@ -10,8 +10,11 @@ permissions:
 
 jobs:
   convert:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
     strategy:
       fail-fast: false
       matrix:
@@ -24,11 +27,18 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install TeX Live
+        run: ./scripts/install_texlive_ci.ps1
+      - name: Check TeX tools
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y texlive-latex-extra texlive-extra-utils texlive-plain-generic texlive-luatex texlive-xetex texlive-lang-cyrillic texlive-fonts-recommended
-          make4ht --version
+          foreach ($tool in @('make4ht', 'latex', 'lualatex', 'xelatex')) {
+            $command = Get-Command $tool -CommandType Application -ErrorAction Stop
+            Write-Host "$tool`: $($command.Source)"
+            & $command.Source --version
+            if ($LASTEXITCODE -ne 0) { throw "$tool version check failed." }
+          }
       - name: Convert and validate fixtures
+        env:
+          PYTHONUTF8: '1'
         run: python scripts/check_tex_integration.py --engine '${{ matrix.engine }}'
       - name: Save HTML and diagnostics
         if: always()
