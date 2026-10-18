@@ -38,8 +38,13 @@ jobs:
     uses: ./.github/workflows/build-windows.yml
     with:
       ref: ${{ needs.validate.outputs.revision }}
+  build-linux:
+    needs: validate
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      ref: ${{ needs.validate.outputs.revision }}
   release:
-    needs: [validate, build]
+    needs: [validate, build, build-linux]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -48,6 +53,10 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: windows-distribution
+          path: assets
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-distribution
           path: assets
       - name: Create draft release
         env:

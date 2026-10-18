@@ -14,7 +14,9 @@ python -m pip install pytest wxPython
 python -m pytest -q
 ```
 
-The application targets Windows. Pull requests must preserve Windows process management, path handling, and accessibility behavior.
+The application targets Windows and Linux with separate distributions and a shared
+conversion core. Pull requests must preserve Windows process management, path
+handling, and accessibility behavior. See [Linux setup and builds](docs/LINUX.md).
 
 ## Pull requests
 
@@ -28,7 +30,9 @@ The application targets Windows. Pull requests must preserve Windows process man
 
 ## GitHub Actions
 
-- **Tests** runs Windows unit tests on Python 3.10, 3.12 and 3.14.
+- **Tests** runs Windows and Linux unit tests on Python 3.10, 3.12 and 3.14.
+- **Build Linux** creates a native Ubuntu 24.04 x86_64 tar archive and SHA-256
+  checksum; **Linux TeX integration** checks real conversions with three engines.
 - **Quality** checks Python errors with Ruff and validates workflow syntax with actionlint.
 - **Localization** checks Russian catalog syntax, missing translations, format fields,
   deterministic compilation and localization tests.
@@ -48,7 +52,7 @@ The application targets Windows. Pull requests must preserve Windows process man
 To prepare a release, update the version in both the application's `pyproject.toml`
 and `packaging/installer.iss`, then push the matching `vX.Y.Z` tag. Alternatively,
 run **Draft release** manually with an existing tag. The workflow builds the tagged
-commit and creates a draft containing the same Windows assets; publish it after review.
+commit and creates a draft containing separate Windows and Linux assets; publish it after review.
 An existing release for that tag must be handled explicitly rather than overwritten.
 
 Scheduled and manually dispatched workflows must be present on the default branch.

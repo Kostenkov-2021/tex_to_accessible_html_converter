@@ -50,3 +50,23 @@ def test_saved_language_is_used_and_can_be_changed(monkeypatch, tmp_path):
     translator.set_language("ru", persist=True)
     assert translator.language == "ru"
     assert translator("Language:") == "Язык:"
+
+
+def test_linux_settings_use_xdg_config_home(monkeypatch, tmp_path):
+    monkeypatch.setattr(localization.sys, "platform", "linux")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    assert localization.settings_path() == tmp_path / "TeXToAccessibleHTML/settings.json"
+
+
+def test_linux_settings_ignore_relative_xdg_path(monkeypatch, tmp_path):
+    monkeypatch.setattr(localization.sys, "platform", "linux")
+    monkeypatch.setattr(localization.Path, "home", lambda: tmp_path)
+    for configured in ("relative/config", ""):
+        monkeypatch.setenv("XDG_CONFIG_HOME", configured)
+        assert localization.settings_path() == tmp_path / ".config/TeXToAccessibleHTML/settings.json"
+
+
+def test_windows_settings_preserve_appdata(monkeypatch, tmp_path):
+    monkeypatch.setattr(localization.sys, "platform", "win32")
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    assert localization.settings_path() == tmp_path / "TeXToAccessibleHTML/settings.json"

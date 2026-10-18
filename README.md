@@ -2,7 +2,11 @@
 
 Russian source documentation is available in [README_RU.md](README_RU.md). 
 
-A Windows application that converts LaTeX documents to HTML5 with Presentation MathML. It provides an accessible graphical interface and a command-line interface for automation. Generated formulas remain visual while also being available to screen readers, Braille output, and MathCAT where supported.
+A Windows and Linux application that converts LaTeX documents to HTML5 with Presentation MathML. It provides an accessible graphical interface and a command-line interface for automation. Generated formulas remain visual while also being available to screen readers, Braille output, and MathCAT where supported.
+
+Windows retains its portable ZIP and installer. The separate Linux tar archive,
+source launch instructions, dependencies and native build steps are described in
+[Linux documentation](docs/LINUX.md). Linux packaging targets Ubuntu 24.04 x86_64.
 
 > [!IMPORTANT]
 > The project is in alpha. Structural MathML validation cannot guarantee mathematical equivalence or correct speech output for every formula. TeX files can execute powerful commands; process untrusted documents only in an isolated environment.

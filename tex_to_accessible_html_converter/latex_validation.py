@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 from pathlib import Path
 
 from conversion_process import run_logged_process
@@ -12,7 +13,8 @@ def validate_latex_document(
 ) -> list[str]:
     """Compile without TeX4ht adaptations, keeping diagnostic files isolated."""
     log_dir.mkdir(parents=True, exist_ok=True)
-    executable = Path(make4ht).parent / f"{engine}.exe"
+    suffix = ".exe" if sys.platform == "win32" else ""
+    executable = Path(make4ht).parent / f"{engine}{suffix}"
     if not executable.is_file():
         raise FileNotFoundError(f"LaTeX validation engine was not found: {executable}")
     env = os.environ.copy()

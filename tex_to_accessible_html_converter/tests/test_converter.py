@@ -390,6 +390,32 @@ def test_conversion_uses_complete_passes_for_accessible_output(monkeypatch, tmp_
     assert command[command.index("-m") + 1] == "default"
 
 
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_make4ht_build_arguments_and_auxiliary_retention(monkeypatch, tmp_path, platform):
+    monkeypatch.setattr(converter.sys, "platform", platform)
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    build = tmp_path / "build"
+    build.mkdir()
+    source = source_dir / "document.tex"
+    source.write_text(r"\documentclass{article}", encoding="utf-8")
+    monkeypatch.setattr(converter, "find_make4ht", lambda _: "/tex/bin/make4ht")
+
+    def fake_run(command, **kwargs):
+        assert ("-B" in command) == (platform == "win32")
+        assert kwargs["cwd"] == source_dir
+        if platform == "linux":
+            for suffix in (".log", ".lg", ".aux", ".xref"):
+                source.with_suffix(suffix).write_text("generated", encoding="utf-8")
+        return CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(converter, "run_logged_process", fake_run)
+    converter.run_make4ht(source, build, build, "latex", "texlive")
+    if platform == "linux":
+        for suffix in (".log", ".lg", ".aux", ".xref"):
+            assert (build / f"document{suffix}").read_text() == "generated"
+
+
 def test_configure_tex_environment_preserves_miktex_roots(tmp_path):
     env = {
         "MIKTEX_USERCONFIG": "existing-config",
