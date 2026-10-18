@@ -35,7 +35,10 @@ The application targets Windows. Pull requests must preserve Windows process man
 - **Build Windows** builds and tests the GUI, CLI and Inno Setup installer for relevant
   pull requests or manual runs. Download `windows-distribution` from the run's artifacts
   for the portable ZIP, installer and SHA-256 checksums.
-- **TeX integration** runs manually or weekly with TeX Live and all three engines.
+- **TeX integration** runs manually or weekly on Windows with TeX Live and all three engines.
+  It installs the required TeX Live collections using the official unattended installer
+  and checks tool paths and versions before conversion. Python uses UTF-8 mode so
+  Cyrillic output is decoded consistently on Windows.
   It checks MathML features, Cyrillic text, links, source preservation and failed conversion.
   HTML and diagnostic artifacts are retained for seven days.
 - **CodeQL** analyzes Python and Actions on pushes, pull requests and weekly.
