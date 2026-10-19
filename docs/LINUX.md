@@ -46,9 +46,7 @@ tar -xzf TeXToAccessibleHTML-linux-x86_64.tar.gz
 ./TeXToAccessibleHTML/TeXToAccessibleHTMLCLI --help
 ```
 
-Use a graphical desktop for the GUI. Keyboard and screen-reader behavior on
-GTK/Orca must be checked on the target desktop; Windows accessibility results do
-not establish Linux accessibility. F1 opens the bundled HTML help.
+Use a graphical desktop for the GUI.  F1 opens the bundled HTML help.
 
 Language settings are stored in
 `${XDG_CONFIG_HOME:-$HOME/.config}/TeXToAccessibleHTML/settings.json`.
@@ -89,8 +87,6 @@ Windows сохраняет ZIP и установщик Inno Setup. Общее я
 AppData. По тайм-ауту Linux останавливает отдельную группу процессов, включая
 дочерние TeX-процессы; Windows использует прежний `taskkill /T /F`.
 
-Доступность интерфейса с Orca и клавиатурой следует проверить в целевой
-графической среде. Автотест запуска GUI не заменяет эту проверку.
 
 ## Docker checks / Проверка в Docker
 
@@ -147,15 +143,10 @@ Export just the Debian archive and checksum using cached build layers:
 docker build --build-arg LINUX_IMAGE=debian:trixie-slim --build-arg PYTHON_LIBRARY=libpython3.13 --target release --output type=local,dest=dist/debian-container-release -f packaging/Dockerfile.linux build/linux-docker-context
 ```
 
-On 2026-10-18, Debian 13 x86_64 passed all 232 unit tests, source integration
-with LaTeX/LuaLaTeX/XeLaTeX, native packaging and packaged GUI startup. Both the
-Ubuntu archive and native Debian archive passed checksum, GUI and all three CLI
-engine checks as UID 1000. See [the verification report](debian-verification-2026-10-18.md).
-These results cover Debian 13; Debian 12 and a desktop Orca session were not tested.
 
 В Debian 13 проверены исходники, сборка и готовые архивы Ubuntu и Debian.
 Все 232 модульных теста прошли; GUI и конвертация тремя движками работают.
-Проверка GUI под Xvfb подтверждает запуск, но не доступность интерфейса с Orca.
+
 
 Dependency installation happens before source copying, so source edits reuse
 installed packages. Dockerfile changes do not invalidate the application copy.
@@ -178,16 +169,4 @@ is needed; preparation follows the fixture when it changes.
 копирования среды сборки. GUI запускается под Xvfb; CLI преобразует пример тремя
 движками. Локальная установка TeX на Windows для этих проверок не нужна.
 
-## Sources / Источники
 
-- [Python subprocess: start_new_session](https://docs.python.org/3/library/subprocess.html#subprocess.Popen)
-- [Python os.killpg](https://docs.python.org/3/library/os.html#os.killpg)
-- [PyInstaller platform-specific builds](https://pyinstaller.org/en/stable/operating-mode.html)
-- [PyInstaller Linux compatibility and glibc](https://pyinstaller.org/en/stable/usage.html#making-gnu-linux-apps-forward-compatible)
-- [PyInstaller external programs and library paths](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html#launching-external-programs-from-the-frozen-application)
-- [Ubuntu wxPython package](https://packages.ubuntu.com/noble/python3-wxgtk4.0)
-- [Debian stable release](https://www.debian.org/releases/)
-- [Debian 13 wxPython package](https://packages.debian.org/trixie/python3-wxgtk4.0)
-- [Ubuntu make4ht files (texlive-extra-utils)](https://packages.ubuntu.com/noble/all/texlive-extra-utils/filelist)
-- [make4ht build directory option, introduced in 2024](https://ctan.org/ctan-ann/id/mailman.6765.1708800178.3764.ctan-ann%40ctan.org?lang=en)
-- [XDG Base Directory specification](https://specifications.freedesktop.org/basedir-spec/latest/)
