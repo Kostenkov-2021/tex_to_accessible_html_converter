@@ -1,7 +1,10 @@
 # Install only the TeX Live collections needed by the integration fixtures.
 [CmdletBinding()]
 param(
-    [string]$Repository = 'https://mirror.ctan.org/systems/texlive/tlnet'
+    [string[]]$Repository = @(
+        'https://mirrors.ibiblio.org/pub/mirrors/CTAN/systems/texlive/tlnet',
+        'https://mirror.math.princeton.edu/pub/CTAN/systems/texlive/tlnet'
+    )
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,12 +19,37 @@ if (Test-Path -LiteralPath $texRoot) {
     throw "Refusing to overwrite an existing TeX Live installation: $texRoot"
 }
 New-Item -ItemType Directory -Path $work | Out-Null
-$archive = Join-Path $work 'install-tl.zip'
-Invoke-WebRequest -Uri "$Repository/install-tl.zip" -OutFile $archive -TimeoutSec 180
-Expand-Archive -LiteralPath $archive -DestinationPath $work
-$installers = @(Get-ChildItem -LiteralPath $work -Recurse -Filter 'install-tl-windows.bat')
-if ($installers.Count -ne 1) {
-    throw 'Expected exactly one TeX Live Windows installer in the archive.'
+$selectedRepository = $null
+$installer = $null
+$mirrorNumber = 0
+foreach ($mirror in $Repository) {
+    $mirrorNumber++
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $download = Join-Path $work "m$mirrorNumber-try$attempt"
+        New-Item -ItemType Directory -Path $download | Out-Null
+        $archive = Join-Path $download 'install-tl.zip'
+        try {
+            Write-Host "Downloading TeX Live installer from $mirror (attempt $attempt/2)."
+            Invoke-WebRequest -Uri "$($mirror.TrimEnd('/'))/install-tl.zip" -OutFile $archive -TimeoutSec 180
+            # Reject HTML challenges, truncated ZIPs and unexpected archive layouts.
+            Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $download 'unpacked')
+            $installers = @(Get-ChildItem -LiteralPath (Join-Path $download 'unpacked') -Recurse -Filter 'install-tl-windows.bat')
+            if ($installers.Count -ne 1) {
+                throw 'Expected exactly one TeX Live Windows installer in the archive.'
+            }
+            $installer = $installers[0].FullName
+            $selectedRepository = $mirror
+            break
+        } catch {
+            # Avoid printing a potentially huge HTML response body into CI logs.
+            Write-Warning "Could not download and unpack a TeX Live installer from $mirror (attempt $attempt/2; $($_.Exception.GetType().Name))."
+            if ($attempt -lt 2) { Start-Sleep -Seconds 2 }
+        }
+    }
+    if ($selectedRepository) { break }
+}
+if (-not $selectedRepository) {
+    throw "Failed to obtain a valid TeX Live installer from all configured mirrors. Download diagnostics: $work"
 }
 $profile = Join-Path $work 'texlive.profile'
 $portableRoot = $texRoot.Replace('\', '/')
@@ -47,7 +75,8 @@ tlpdbopt_install_docfiles 0
 tlpdbopt_install_srcfiles 0
 "@ | Set-Content -LiteralPath $profile -Encoding ascii
 
-& $installers[0].FullName '-no-gui' '-profile' $profile '-repository' $Repository
+Write-Host "Installing TeX Live from $selectedRepository."
+& $installer '-no-gui' '-profile' $profile '-repository' $selectedRepository
 if ($LASTEXITCODE -ne 0) { throw "TeX Live installation failed ($LASTEXITCODE)." }
 $bin = Join-Path $texRoot 'bin/windows'
 $tlmgr = Join-Path $bin 'tlmgr.bat'
@@ -58,6 +87,6 @@ if (-not (Test-Path -LiteralPath $tlmgr -PathType Leaf) -or
 }
 $env:PATH = "$bin;$env:PATH"
 # TeX4ht and scalable Cyrillic fonts are explicit runtime requirements.
-& $tlmgr install tex4ht make4ht cm-super
+& $tlmgr '--repository' $selectedRepository install tex4ht make4ht cm-super
 if ($LASTEXITCODE -ne 0) { throw "TeX Live package installation failed ($LASTEXITCODE)." }
 $bin | Out-File -LiteralPath $env:GITHUB_PATH -Append -Encoding utf8

@@ -45,7 +45,9 @@ handling, and accessibility behavior. See [Linux setup and builds](docs/LINUX.md
 - **TeX integration** runs manually or weekly on Windows with TeX Live and all three engines.
   It installs the required TeX Live collections using the official unattended installer
   through `scripts/install_texlive_ci.ps1`, without package documentation or sources,
-  and checks tool paths and versions before conversion.
+  using explicit CTAN mirrors with two download attempts per mirror and ZIP validation.
+  The selected mirror is also used for installation and additional packages.
+  It checks tool paths and versions before conversion.
   Changes to this installer, its workflow or integration fixtures also run this check
   in pull requests. LuaLaTeX first prepares legacy Cyrillic font metrics with LaTeX.
   Python uses UTF-8 mode so
