@@ -34,6 +34,9 @@ handling, and accessibility behavior. See [Linux setup and builds](docs/LINUX.md
 - **Build Linux** creates a native Ubuntu 24.04 x86_64 tar archive and SHA-256
   checksum; **Linux TeX integration** checks real conversions with three engines.
 - **Quality** checks Python errors with Ruff and validates workflow syntax with actionlint.
+  It also checks literal local `.py`, `.ps1` and `.sh` paths in workflow run blocks,
+  respecting workflow, job and step working directories. Dynamic working directories
+  require runtime validation.
 - **Localization** checks Russian catalog syntax, missing translations, format fields,
   deterministic compilation and localization tests.
 - **Build Windows** builds and tests the GUI, CLI and Inno Setup installer for relevant
@@ -41,7 +44,13 @@ handling, and accessibility behavior. See [Linux setup and builds](docs/LINUX.md
   for the portable ZIP, installer and SHA-256 checksums.
 - **TeX integration** runs manually or weekly on Windows with TeX Live and all three engines.
   It installs the required TeX Live collections using the official unattended installer
-  and checks tool paths and versions before conversion. Python uses UTF-8 mode so
+  through `scripts/install_texlive_ci.ps1`, without package documentation or sources,
+  using explicit CTAN mirrors with two download attempts per mirror and ZIP validation.
+  The selected mirror is also used for installation and additional packages.
+  It checks tool paths and versions before conversion.
+  Changes to this installer, its workflow or integration fixtures also run this check
+  in pull requests. LuaLaTeX first prepares legacy Cyrillic font metrics with LaTeX.
+  Python uses UTF-8 mode so
   Cyrillic output is decoded consistently on Windows.
   It checks MathML features, Cyrillic text, links, source preservation and failed conversion.
   HTML and diagnostic artifacts are retained for seven days.

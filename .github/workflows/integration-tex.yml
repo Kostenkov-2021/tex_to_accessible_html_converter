@@ -2,6 +2,14 @@ name: TeX integration
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tex_to_accessible_html_converter/**'
+      - '.github/workflows/integration-tex.yml'
+      - 'scripts/install_texlive_ci.ps1'
+      - 'scripts/test_texlive_installer.ps1'
+      - 'scripts/check_tex_integration.py'
+      - 'tests/fixtures/**'
   schedule:
     - cron: '41 4 * * 2'
 
@@ -26,6 +34,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Test installer failure handling
+        run: ./scripts/test_texlive_installer.ps1
       - name: Install TeX Live
         run: ./scripts/install_texlive_ci.ps1
       - name: Check TeX tools
@@ -36,6 +46,13 @@ jobs:
             & $command.Source --version
             if ($LASTEXITCODE -ne 0) { throw "$tool version check failed." }
           }
+      - name: Prepare legacy Cyrillic font metrics
+        if: matrix.engine == 'lualatex'
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'tex-font-metrics'
+          New-Item -ItemType Directory -Path $work -Force | Out-Null
+          latex -interaction=nonstopmode -halt-on-error "-output-directory=$work" tests/fixtures/integration.tex
+          if ($LASTEXITCODE -ne 0) { throw 'Cyrillic font preparation failed.' }
       - name: Convert and validate fixtures
         env:
           PYTHONUTF8: '1'
