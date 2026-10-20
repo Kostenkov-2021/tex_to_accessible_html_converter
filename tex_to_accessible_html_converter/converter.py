@@ -584,7 +584,11 @@ def run_make4ht(
         make4ht,
         *engine_args,
         "-c",
-        str(config).replace("\\", "/"),
+        # make4ht inserts this value into TeX input. An absolute Windows
+        # temporary path can contain an active '~' (RUNNER~1), which TeX
+        # expands instead of reading as part of the filename. Both directories
+        # belong to the same isolated build tree; use their relative path.
+        os.path.relpath(config, tex_file.parent).replace("\\", "/"),
         "-f",
         # Our post-processing pipeline performs its own strict MathML repair
         # and validation.  make4ht's common DOM filters fall back to an HTML

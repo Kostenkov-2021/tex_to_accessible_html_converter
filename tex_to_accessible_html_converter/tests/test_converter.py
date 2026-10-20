@@ -347,6 +347,34 @@ def test_run_make4ht_uses_selected_distribution_for_child_processes(
     )
 
 
+@pytest.mark.parametrize("engine", ["latex", "lualatex", "xelatex"])
+def test_make4ht_config_does_not_expose_tilde_in_temporary_root(
+    monkeypatch, tmp_path, engine
+):
+    root = tmp_path / "RUNNER~1" / "integration-build"
+    source_dir = root / "source"
+    build = root / "make4ht"
+    source_dir.mkdir(parents=True)
+    build.mkdir()
+    source = source_dir / "integration.tex"
+    source.write_text(
+        r"\documentclass{article}\begin{document}x\end{document}", encoding="utf-8"
+    )
+    monkeypatch.setattr(converter, "find_make4ht", lambda _: "/tex/bin/make4ht")
+
+    def fake_run(command, **kwargs):
+        config_argument = command[command.index("-c") + 1]
+        assert "~" not in config_argument
+        assert not Path(config_argument).is_absolute()
+        config = kwargs["cwd"] / config_argument
+        assert config.resolve() == (build / "accessible-mathml.cfg").resolve()
+        assert config.read_text(encoding="utf-8") == converter.MATHML_CONFIG
+        return CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(converter, "run_logged_process", fake_run)
+    converter.run_make4ht(source, build, build, engine, "texlive")
+
+
 def test_find_make4ht_does_not_substitute_another_distribution(monkeypatch, tmp_path):
     monkeypatch.setattr(
         converter.shutil, "which", lambda name: r"C:\MiKTeX\bin\make4ht.exe"

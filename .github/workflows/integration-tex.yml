@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'tex_to_accessible_html_converter/**'
       - '.github/workflows/integration-tex.yml'
       - 'scripts/install_texlive_ci.ps1'
       - 'scripts/test_texlive_installer.ps1'
