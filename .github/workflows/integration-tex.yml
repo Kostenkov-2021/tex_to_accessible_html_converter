@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/integration-tex.yml'
       - 'scripts/install_texlive_ci.ps1'
+      - 'scripts/test_texlive_installer.ps1'
       - 'scripts/check_tex_integration.py'
       - 'tests/fixtures/**'
   schedule:
@@ -32,6 +33,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Test installer failure handling
+        run: ./scripts/test_texlive_installer.ps1
       - name: Install TeX Live
         run: ./scripts/install_texlive_ci.ps1
       - name: Check TeX tools

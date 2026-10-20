@@ -41,8 +41,8 @@ collection-langcyrillic 1
 collection-fontsrecommended 1
 collection-plaingeneric 1
 instopt_adjustpath 0
-instopt_desktop_integration 0
-instopt_file_assocs 0
+tlpdbopt_desktop_integration 0
+tlpdbopt_file_assocs 0
 tlpdbopt_install_docfiles 0
 tlpdbopt_install_srcfiles 0
 "@ | Set-Content -LiteralPath $profile -Encoding ascii
@@ -50,8 +50,14 @@ tlpdbopt_install_srcfiles 0
 & $installers[0].FullName '-no-gui' '-profile' $profile '-repository' $Repository
 if ($LASTEXITCODE -ne 0) { throw "TeX Live installation failed ($LASTEXITCODE)." }
 $bin = Join-Path $texRoot 'bin/windows'
+$tlmgr = Join-Path $bin 'tlmgr.bat'
+# The Windows installer wrapper can return zero even when install-tl stops early.
+if (-not (Test-Path -LiteralPath $tlmgr -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $texRoot 'tlpkg/texlive.tlpdb') -PathType Leaf)) {
+    throw "TeX Live installation did not complete; inspect the installer output above. Installer files: $work"
+}
 $env:PATH = "$bin;$env:PATH"
 # TeX4ht and scalable Cyrillic fonts are explicit runtime requirements.
-& (Join-Path $bin 'tlmgr.bat') install tex4ht make4ht cm-super
+& $tlmgr install tex4ht make4ht cm-super
 if ($LASTEXITCODE -ne 0) { throw "TeX Live package installation failed ($LASTEXITCODE)." }
 $bin | Out-File -LiteralPath $env:GITHUB_PATH -Append -Encoding utf8
